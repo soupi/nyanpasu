@@ -1,0 +1,11 @@
+cache:
+  paths:
+    - .stack-work
+
+before_script:
+    - wget -qO- https://get.haskellstack.org/ | sh
+    - stack setup
+
+test:
+  script:
+    - stack test
