@@ -25,8 +25,17 @@ compileProgram e =
 
 
 compileExpr :: Expr -> [Instruction]
-compileExpr e =
-  [ IMov (Reg EAX) (Const e) ]
+compileExpr = reverse . go
+  where
+    go = \case
+      Num i ->
+        [ IMov (Reg EAX) (Const i) ]
+      Inc e ->
+          IAdd (Reg EAX) (Const 1)
+        : go e
+      Dec e ->
+          ISub (Reg EAX) (Const 1)
+        : go e
 
 ppAsm :: [Instruction] -> String
 ppAsm = unlines . map ppInstruction
@@ -34,8 +43,16 @@ ppAsm = unlines . map ppInstruction
 ppInstruction :: Instruction -> String
 ppInstruction = \case
   IMov dest src ->
+    ppOp "mov" dest src
+  IAdd dest src ->
+    ppOp "add" dest src
+  ISub dest src ->
+    ppOp "sub" dest src
+
+ppOp :: String -> Arg -> Arg -> String
+ppOp cmd dest src =
     unwords
-      [ "mov"
+      [ cmd
       , ppArg dest <> ","
       , ppArg src
       ]

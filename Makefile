@@ -11,7 +11,12 @@ build:
 .PHONY: dev
 
 dev:
-	stack build --fast --file-watch
+	stack test --fast --file-watch
+
+.PHONY: test
+
+test:
+	stack test --fast
 
 .PHONY: run
 

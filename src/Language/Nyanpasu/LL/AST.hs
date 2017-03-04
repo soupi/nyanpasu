@@ -9,7 +9,11 @@ import Data.Data
 import GHC.Generics
 import Control.DeepSeq
 
-type Expr = Int
+data Expr
+  = Num Int
+  | Inc Expr
+  | Dec Expr
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 data Reg
   = EAX
@@ -22,4 +26,6 @@ data Arg
 
 data Instruction
   = IMov Arg Arg
+  | IAdd Arg Arg
+  | ISub Arg Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)

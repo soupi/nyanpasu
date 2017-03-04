@@ -11,4 +11,4 @@ run = do
   putStrLn (compileProgram sample)
 
 sample :: Expr
-sample = 7
+sample = Inc $ Dec $ Dec $ Inc $ Dec $ Inc $ Inc $ Num 7

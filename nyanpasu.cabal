@@ -74,6 +74,7 @@ test-suite test
   main-is:             Tests.hs
   other-modules:
     Testing
+    Simple
   build-depends:       base
                      , text
                      , tasty
