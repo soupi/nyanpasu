@@ -3,6 +3,7 @@ cache:
     - .stack-work
 
 before_script:
+    - apt-get update
     - wget -qO- https://get.haskellstack.org/ | sh
     - stack setup
 
