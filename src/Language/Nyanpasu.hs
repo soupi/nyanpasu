@@ -5,6 +5,7 @@ module Language.Nyanpasu
 where
 
 import Language.Nyanpasu.LL as Export
+import Language.Nyanpasu.Error as Export
 
 run :: IO ()
 run = do

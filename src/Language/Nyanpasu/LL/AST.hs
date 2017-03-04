@@ -13,6 +13,8 @@ data Expr
   = Num Int
   | Inc Expr
   | Dec Expr
+  | Idn Name
+  | Let Name Expr Expr
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 data Reg
@@ -29,3 +31,5 @@ data Instruction
   | IAdd Arg Arg
   | ISub Arg Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
+
+type Name = String

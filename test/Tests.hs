@@ -1,6 +1,7 @@
 
 import Testing
 import qualified Simple
+import qualified Interpreter
 
 main :: IO ()
 main = defaultMain tests
@@ -10,4 +11,5 @@ tests =
   testGroup
     "Tests"
     [ Simple.tests
+    , Interpreter.tests
     ]

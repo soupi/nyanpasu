@@ -5,3 +5,4 @@ where
 
 import Language.Nyanpasu.LL.AST as Export
 import Language.Nyanpasu.LL.CodeGen as Export
+import Language.Nyanpasu.LL.Interpreter as Export
