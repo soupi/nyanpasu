@@ -19,4 +19,4 @@ throwErr :: MonadError Error m => String -> m a
 throwErr = throwError . Error
 
 displayError :: Error -> String
-displayError (Error s) = "Error: " <> s 
+displayError (Error s) = "Error: " <> s

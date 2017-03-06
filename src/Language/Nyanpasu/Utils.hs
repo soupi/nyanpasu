@@ -17,3 +17,12 @@ lookupM getter key = do
       pure v
 
 type Name = String
+
+llookupM :: (MonadError Error m, MonadState s m) => (s -> [(String, v)]) -> String -> m v
+llookupM getter key = do
+  env <- getter <$> get
+  case lookup key env of
+    Nothing ->
+      throwErr $ "Undefined variable '" <> key <> "'."
+    Just v ->
+      pure v

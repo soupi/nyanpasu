@@ -8,8 +8,6 @@ import Data.Char (toLower)
 import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
-import qualified Data.Map as M
-
 
 data CodeGenState = CodeGenState
   { cgSymbols :: Env
@@ -18,11 +16,11 @@ data CodeGenState = CodeGenState
   deriving (Show, Read, Eq, Ord)
 
 initState :: CodeGenState
-initState = CodeGenState M.empty 1
+initState = CodeGenState [] 1
 
 type Address = Int
 
-type Env = M.Map Name Address
+type Env = [(Name, Address)]
 
 type CodeGen a
   = StateT CodeGenState (Except Error) a
@@ -30,8 +28,13 @@ type CodeGen a
 insertVar :: String -> CodeGen Address
 insertVar name = do
   CodeGenState env addr <- get
-  put (CodeGenState (M.insert name addr env) (addr + 1))
+  put (CodeGenState ((name, addr) : env) (addr + 1))
   pure addr
+
+popVar :: CodeGen ()
+popVar = do
+  CodeGenState env addr <- get
+  put (CodeGenState (tail env) (addr - 1))
 
 compileProgram :: Expr -> Either Error String
 compileProgram e = runExcept . flip evalStateT initState $ do
@@ -68,17 +71,19 @@ compileExpr = \case
     rest <- compileExpr e
     pure $
       rest <> [ ISub (Reg EAX) (Const 1) ]
-  
+
   Let name binder body -> do
-    concat <$> sequence
+    asm <- concat <$> sequence
       [ compileExpr binder
       , do addr <- insertVar name
            pure [ IMov (RegOffset ESP addr) (Reg EAX) ]
       , compileExpr body
       ]
+    popVar
+    pure asm
 
   Idn name -> do
-    addr <- lookupM cgSymbols name
+    addr <- llookupM cgSymbols name
     pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
 
 

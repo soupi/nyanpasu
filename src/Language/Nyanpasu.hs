@@ -28,7 +28,7 @@ run = do
     _ -> do
       hPutStrLn stderr "Usage: nyanpasu \"<expr>\""
       exitFailure
-      
+
 
 samples :: [Expr]
 samples =
