@@ -5,6 +5,7 @@
 
 module Language.Nyanpasu.Error where
 
+import Data.Monoid
 import Data.Data
 import GHC.Generics
 import Control.DeepSeq
@@ -16,3 +17,6 @@ data Error
 
 throwErr :: MonadError Error m => String -> m a
 throwErr = throwError . Error
+
+displayError :: Error -> String
+displayError (Error s) = "Error: " <> s 

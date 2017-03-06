@@ -1,12 +1,12 @@
 module Language.Nyanpasu.LL.Interpreter where
 
-import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Map as M
 
 import Language.Nyanpasu.LL.AST
 import Language.Nyanpasu.Error
+import Language.Nyanpasu.Utils
 
 type Env = M.Map Name Int
 
@@ -33,10 +33,4 @@ runInterpreter = \case
     modify (M.insert binder r)
     runInterpreter e
 
-  Idn name -> do
-    mResult <- M.lookup name <$> get
-    maybe
-      (throwErr $ "Undeclared identifier '" <> name <> "'")
-      pure
-      mResult
-
+  Idn name -> lookupM id name

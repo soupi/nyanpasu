@@ -23,6 +23,7 @@ library
      Language.Nyanpasu.LL.CodeGen
      Language.Nyanpasu.LL.Interpreter
      Language.Nyanpasu.Error
+     Language.Nyanpasu.Utils
   other-modules:
   build-depends:
      base >= 4.7 && < 5

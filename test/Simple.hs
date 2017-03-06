@@ -16,7 +16,7 @@ qc :: [(Int -> Bool)]
 qc =
   [ \i ->
       compileProgram (Num i) ==
-      unlines
+      Right (unlines
         [ "section .text"
         , "global my_code"
         , "my_code:"
@@ -24,13 +24,13 @@ qc =
         , "mov eax, " ++ show i
         , ""
         , "ret"
-        ]
+        ])
   ]
 
 simple :: [Assertion]
 simple =
   [ compileProgram (Inc $ Num 7) @=?
-      unlines
+      Right (unlines
         [ "section .text"
         , "global my_code"
         , "my_code:"
@@ -39,10 +39,10 @@ simple =
         , "add eax, 1"
         , ""
         , "ret"
-        ]
+        ])
 
   , compileProgram (Dec $ Num 7) @=?
-      unlines
+      Right (unlines
         [ "section .text"
         , "global my_code"
         , "my_code:"
@@ -51,10 +51,10 @@ simple =
         , "sub eax, 1"
         , ""
         , "ret"
-        ]
+        ])
 
   , compileProgram (Inc $ Inc $ Dec $ Num 7) @=?
-      unlines
+      Right (unlines
         [ "section .text"
         , "global my_code"
         , "my_code:"
@@ -65,5 +65,5 @@ simple =
         , "add eax, 1"
         , ""
         , "ret"
-        ]
+        ])
   ]

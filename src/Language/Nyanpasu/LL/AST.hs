@@ -5,6 +5,8 @@
 
 module Language.Nyanpasu.LL.AST where
 
+import Language.Nyanpasu.Utils
+
 import Data.Data
 import GHC.Generics
 import Control.DeepSeq
@@ -19,11 +21,13 @@ data Expr
 
 data Reg
   = EAX
+  | ESP
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 data Arg
   = Const Int
   | Reg Reg
+  | RegOffset Reg Int
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 data Instruction
@@ -31,5 +35,3 @@ data Instruction
   | IAdd Arg Arg
   | ISub Arg Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
-
-type Name = String
