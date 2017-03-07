@@ -14,9 +14,21 @@ import Language.Nyanpasu.Error as Export
 run :: IO ()
 run = do
   getArgs >>= \case
-    ["samples"] ->
-      putStrLn $ unlines $ map show samples
+    "samples":rest ->
+      putStrLn $ unlines $ map (escape rest . show) samples
+        where
+          escape = \case
+              ["--escape"] -> concatMap go
+              ["--escape-hard"] -> concatMap gohard
+              _ -> id
+            where
+              go = \case
+                '"' -> [ '\\', '"' ]
+                x   -> [ x ]
 
+              gohard = \case
+                '"' -> [ '\\', '\\', '\\', '"' ]
+                x   -> [ x ]
     [expr] ->
       case compileProgram (read expr :: Expr ()) of
         Left err -> do
@@ -52,3 +64,4 @@ samples =
           )
         (inc $ idn "c")
   ]
+
