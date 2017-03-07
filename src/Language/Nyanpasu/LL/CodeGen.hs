@@ -36,8 +36,8 @@ popVar = do
   CodeGenState env addr <- get
   put (CodeGenState (tail env) (addr - 1))
 
-compileProgram :: Expr a -> Either Error String
-compileProgram e = runExcept . flip evalStateT initState $ do
+compileProgram :: Expr () -> Either Error String
+compileProgram (assignLabels -> e) = runExcept . flip evalStateT initState $ do
   compiled <- compileExpr e
   asmStr   <- ppAsm compiled
   pure $
@@ -57,11 +57,10 @@ compileProgram e = runExcept . flip evalStateT initState $ do
     suffix = "ret"
 
 
-compileExpr :: Expr a -> CodeGen [Instruction]
+compileExpr :: Expr Int -> CodeGen [Instruction]
 compileExpr = \case
   Num _ i ->
     pure [ IMov (Reg EAX) (Const i) ]
-
 
   PrimOp _ prim -> case prim of
     Inc e -> do
@@ -88,6 +87,33 @@ compileExpr = \case
     addr <- llookupM cgSymbols name
     pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
 
+  If path test true false -> do
+   testAsm  <- compileExpr test
+   trueAsm  <- compileExpr true
+   falseAsm <- compileExpr false
+   pure $ concat
+     [ testAsm
+     , [ ICmp (Reg EAX) (Const 0)
+       , IJe  "if_false" path
+       , Label "if_true" path
+       ]
+     , trueAsm
+     , [ IJmp  "if_done"  path
+       , Label "if_false" path
+       ]
+     , falseAsm
+     ,  [ Label "if_done" path ]
+     ]
+   
+
+assignLabels :: Expr () -> Expr Int
+assignLabels = flip evalState 0 . traverse go
+  where
+    go () = do
+      i <- get
+      put (i + 1)
+      pure i
+      
 
 ppAsm :: [Instruction] -> CodeGen String
 ppAsm = pure . unlines . map ppInstruction
@@ -100,6 +126,15 @@ ppInstruction = \case
     ppOp "add" dest src
   ISub dest src ->
     ppOp "sub" dest src
+  ICmp dest src ->
+    ppOp "cmp" dest src
+  IJmp lbl i ->
+    "jmp " <> lbl <> "_" <> show i
+  IJe  lbl i ->
+    "je " <> lbl <> "_" <> show i
+  Label lbl i ->
+    lbl <> "_" <> show i <> ":"
+
 
 ppOp :: String -> Arg -> Arg -> String
 ppOp cmd dest src =

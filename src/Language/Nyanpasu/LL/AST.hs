@@ -23,6 +23,7 @@ data Expr a
   | PrimOp a (PrimOp a)
   | Idn a Name
   | Let a Name (Expr a) (Expr a)
+  | If a (Expr a) (Expr a) (Expr a)
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | The PrimOp type
@@ -42,6 +43,10 @@ data Instruction
   = IMov Arg Arg
   | IAdd Arg Arg
   | ISub Arg Arg
+  | ICmp Arg Arg
+  | IJmp  String Int
+  | IJe   String Int
+  | Label String Int
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 -- | The Arg type
@@ -79,6 +84,7 @@ instance Foldable Expr where
     PrimOp a op -> f a <> foldMap f op
     Idn a _ -> f a
     Let a _ b e -> f a <> foldMap f b <> foldMap f e
+    If a t t' f' -> f a <> foldMap f t <> foldMap f t' <> foldMap f f'
 
 instance Traversable Expr where
   traverse f = \case
@@ -86,6 +92,8 @@ instance Traversable Expr where
     PrimOp a op -> PrimOp <$> f a <*> traverse f op
     Idn a n -> flip Idn n <$> f a
     Let a n b e -> flip Let n <$> f a <*> traverse f b <*> traverse f e
+    If a t t' f' ->
+      If <$> f a <*> traverse f t <*> traverse f t' <*> traverse f f'
 
 -----------------
 -- Annotations --
@@ -97,6 +105,7 @@ getAnn = \case
   PrimOp a _ -> a
   Idn a _ -> a
   Let a _ _ _ -> a
+  If  a _ _ _ -> a
 
 setAnn :: a -> Expr a -> Expr a
 setAnn ann = \case
@@ -104,6 +113,7 @@ setAnn ann = \case
   PrimOp _ op -> PrimOp ann op
   Idn _ i -> Idn ann i
   Let _ n b e -> Let ann n b e
+  If _ t f' t' -> If ann t f' t'
 
 --------------------
 -- No Annotations --
@@ -123,3 +133,6 @@ idn = Idn ()
 
 let' :: String -> Expr () -> Expr () -> Expr ()
 let' = Let ()
+
+if' :: Expr () -> Expr () -> Expr () -> Expr ()
+if' = If ()

@@ -35,3 +35,10 @@ runInterpreter = \case
     runInterpreter e
 
   Idn _ name -> lookupM id name
+
+  If _ test true false -> do
+    r <- runInterpreter test
+    runInterpreter $
+      if r /= 0
+        then true
+        else false

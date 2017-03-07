@@ -14,6 +14,14 @@ import Language.Nyanpasu.Error as Export
 run :: IO ()
 run = do
   getArgs >>= \case
+    ["interpret", expr] ->
+      case interpret (read expr :: Expr ()) of
+        Left err -> do
+          hPutStrLn stderr (displayError err)
+          exitFailure
+        Right rs ->
+          putStrLn (show rs)
+      
     "samples":rest ->
       putStrLn $ unlines $ map (escape rest . show) samples
         where
@@ -63,5 +71,12 @@ samples =
             )
           )
         (inc $ idn "c")
+  , let'
+      "a"
+      (num 1)
+      $ if'
+        (idn "a")
+        (if' (num 0) (num 5) (num 7))
+        (num 0)
   ]
 

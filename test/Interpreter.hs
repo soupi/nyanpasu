@@ -31,4 +31,15 @@ inter =
   , interpret (let' "x" (inc $ num 6) $ let' "y" (dec $ dec $ num 1) $ inc $ idn "x") @=?
       Right 8
 
+  , interpret
+      (let'
+        "a"
+        (num 1)
+        $ if'
+          (idn "a")
+          (if' (num 0) (num 5) (num 7))
+          (num 0))
+      @=?
+      Right 7
+
   ]
