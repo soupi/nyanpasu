@@ -36,7 +36,7 @@ popVar = do
   CodeGenState env addr <- get
   put (CodeGenState (tail env) (addr - 1))
 
-compileProgram :: Expr -> Either Error String
+compileProgram :: Expr a -> Either Error String
 compileProgram e = runExcept . flip evalStateT initState $ do
   compiled <- compileExpr e
   asmStr   <- ppAsm compiled
@@ -57,22 +57,24 @@ compileProgram e = runExcept . flip evalStateT initState $ do
     suffix = "ret"
 
 
-compileExpr :: Expr -> CodeGen [Instruction]
+compileExpr :: Expr a -> CodeGen [Instruction]
 compileExpr = \case
-  Num i ->
+  Num _ i ->
     pure [ IMov (Reg EAX) (Const i) ]
 
-  Inc e -> do
-    rest <- compileExpr e
-    pure $
-      rest <> [ IAdd (Reg EAX) (Const 1) ]
 
-  Dec e -> do
-    rest <- compileExpr e
-    pure $
-      rest <> [ ISub (Reg EAX) (Const 1) ]
+  PrimOp _ prim -> case prim of
+    Inc e -> do
+      rest <- compileExpr e
+      pure $
+        rest <> [ IAdd (Reg EAX) (Const 1) ]
 
-  Let name binder body -> do
+    Dec e -> do
+      rest <- compileExpr e
+      pure $
+        rest <> [ ISub (Reg EAX) (Const 1) ]
+
+  Let _ name binder body -> do
     asm <- concat <$> sequence
       [ compileExpr binder
       , do addr <- insertVar name
@@ -82,7 +84,7 @@ compileExpr = \case
     popVar
     pure asm
 
-  Idn name -> do
+  Idn _ name -> do
     addr <- llookupM cgSymbols name
     pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
 

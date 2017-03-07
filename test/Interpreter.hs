@@ -14,21 +14,21 @@ tests =
 
 inter :: [Assertion]
 inter =
-  [ interpret (Num 5) @=?
+  [ interpret (num 5) @=?
       Right 5
 
-  , interpret (Dec $ Dec $ Num 8) @=?
+  , interpret (dec $ dec $ num 8) @=?
       Right 6
 
-  , interpret (Inc $ Dec $ Num 7) @=?
+  , interpret (inc $ dec $ num 7) @=?
       Right 7
 
-  , interpret (Let "x" (Inc $ Num 6) $ Dec $ Inc $ Inc $ Idn "x") @=?
+  , interpret (let' "x" (inc $ num 6) $ dec $ inc $ inc $ idn "x") @=?
       Right 8
 
-  , interpret (Let "x" (Inc $ Num 6) $ Let "x" (Dec $ Dec $ Num 1) $ Inc $ Idn "x") @=?
+  , interpret (let' "x" (inc $ num 6) $ let' "x" (dec $ dec $ num 1) $ inc $ idn "x") @=?
       Right 0
-  , interpret (Let "x" (Inc $ Num 6) $ Let "y" (Dec $ Dec $ Num 1) $ Inc $ Idn "x") @=?
+  , interpret (let' "x" (inc $ num 6) $ let' "y" (dec $ dec $ num 1) $ inc $ idn "x") @=?
       Right 8
 
   ]

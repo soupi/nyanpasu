@@ -18,7 +18,7 @@ run = do
       putStrLn $ unlines $ map show samples
 
     [expr] ->
-      case compileProgram (read expr) of
+      case compileProgram (read expr :: Expr ()) of
         Left err -> do
           hPutStrLn stderr (displayError err)
           exitFailure
@@ -30,25 +30,25 @@ run = do
       exitFailure
 
 
-samples :: [Expr]
+samples :: [Expr ()]
 samples =
-  [ Num 7
-  , Inc $ Dec $ Dec $ Inc $ Dec $ Inc $ Inc $ Num 7
-  , Let "x" (Dec $ Num 1) (Idn "x")
-  , Let "x" (Dec $ Num 1) (Let "x" (Inc $ Inc $ Idn "x") (Inc $ Idn "x"))
-  , Let
+  [ num 7
+  , inc $ dec $ dec $ inc $ dec $ inc $ inc $ num 7
+  , let' "x" (dec $ num 1) (idn "x")
+  , let' "x" (dec $ num 1) (let' "x" (inc $ inc $ idn "x") (inc $ idn "x"))
+  , let'
       "a"
-      (Num 10)
-      $ Let
+      (num 10)
+      $ let'
           "c"
-          (Let
+          (let'
             "b"
-            (Inc $ Idn "a")
-            (Let
+            (inc $ idn "a")
+            (let'
               "d"
-              (Inc $ Idn "b")
-              (Inc $ Idn "b")
+              (inc $ idn "b")
+              (inc $ idn "b")
             )
           )
-        (Inc $ Idn "c")
+        (inc $ idn "c")
   ]

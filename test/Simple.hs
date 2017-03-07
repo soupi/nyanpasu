@@ -15,7 +15,7 @@ tests =
 qc :: [(Int -> Bool)]
 qc =
   [ \i ->
-      compileProgram (Num i) ==
+      compileProgram (num i) ==
       Right (unlines
         [ "section .text"
         , "global my_code"
@@ -29,7 +29,7 @@ qc =
 
 simple :: [Assertion]
 simple =
-  [ compileProgram (Inc $ Num 7) @=?
+  [ compileProgram (inc $ num 7) @=?
       Right (unlines
         [ "section .text"
         , "global my_code"
@@ -41,7 +41,7 @@ simple =
         , "ret"
         ])
 
-  , compileProgram (Dec $ Num 7) @=?
+  , compileProgram (dec $ num 7) @=?
       Right (unlines
         [ "section .text"
         , "global my_code"
@@ -53,7 +53,7 @@ simple =
         , "ret"
         ])
 
-  , compileProgram (Inc $ Inc $ Dec $ Num 7) @=?
+  , compileProgram (inc $ inc $ dec $ num 7) @=?
       Right (unlines
         [ "section .text"
         , "global my_code"

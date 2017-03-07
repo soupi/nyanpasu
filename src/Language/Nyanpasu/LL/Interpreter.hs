@@ -13,24 +13,25 @@ type Env = M.Map Name Int
 type Interpreter a
   = StateT Env (Except Error) a
 
-interpret :: Expr -> Either Error Int
+interpret :: Expr a -> Either Error Int
 interpret =
   runExcept . flip evalStateT M.empty . runInterpreter
 
-runInterpreter :: Expr -> Interpreter Int
+runInterpreter :: Expr a -> Interpreter Int
 runInterpreter = \case
-  Num i ->
+  Num _ i ->
     pure i
 
-  Inc e ->
-    (+1) <$> runInterpreter e
+  PrimOp _ prim -> case prim of
+    Inc e ->
+      (+1) <$> runInterpreter e
 
-  Dec e ->
-    (\x -> x-1) <$> runInterpreter e
+    Dec e ->
+      (\x -> x-1) <$> runInterpreter e
 
-  Let binder bind e -> do
+  Let _ binder bind e -> do
     r <- runInterpreter bind
     modify (M.insert binder r)
     runInterpreter e
 
-  Idn name -> lookupM id name
+  Idn _ name -> lookupM id name
