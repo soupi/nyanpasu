@@ -1,40 +1,59 @@
-module Language.Nyanpasu.LL.CodeGen where
+{- | Definition of the low-level IR for the compiler
+-}
 
-import Language.Nyanpasu.LL.AST
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
+
+module Language.Nyanpasu.Assembly.X86 where
+
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
+import Language.Nyanpasu.LL.AST
+import Language.Nyanpasu.LL.CodeGenUtils
+
+import Data.Data
+import GHC.Generics
+import Control.DeepSeq
 
 import Data.Char (toLower)
 import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
 
-data CodeGenState = CodeGenState
-  { cgSymbols :: Env
-  , cgCounter :: !Address
-  }
-  deriving (Show, Read, Eq, Ord)
+--------------
+-- Assembly --
+--------------
 
-initState :: CodeGenState
-initState = CodeGenState [] 1
+-- | The Instruction type
+--   represents an x86 assembly instruction
+data Instruction
+  = IMov Arg Arg
+  | IAdd Arg Arg
+  | ISub Arg Arg
+  | ICmp Arg Arg
+  | IJmp  String Int
+  | IJe   String Int
+  | Label String Int
+  deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
-type Address = Int
+-- | The Arg type
+--   represents an x86 assembly argument to an instruction
+data Arg
+  = Const Int
+  | Reg Reg
+  | RegOffset Reg Int
+  deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
-type Env = [(Name, Address)]
+-- | The Reg type
+--   represents an x86 assembly register
+data Reg
+  = EAX
+  | ESP
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
-type CodeGen a
-  = StateT CodeGenState (Except Error) a
 
-insertVar :: String -> CodeGen Address
-insertVar name = do
-  CodeGenState env addr <- get
-  put (CodeGenState ((name, addr) : env) (addr + 1))
-  pure addr
-
-popVar :: CodeGen ()
-popVar = do
-  CodeGenState env addr <- get
-  put (CodeGenState (tail env) (addr - 1))
+---------------------
+-- Code Generation --
+---------------------
 
 compileProgram :: Expr () -> Either Error String
 compileProgram (assignLabels -> e) = runExcept . flip evalStateT initState $ do
@@ -105,15 +124,6 @@ compileExpr = \case
      ,  [ Label "if_done" path ]
      ]
    
-
-assignLabels :: Expr () -> Expr Int
-assignLabels = flip evalState 0 . traverse go
-  where
-    go () = do
-      i <- get
-      put (i + 1)
-      pure i
-      
 
 ppAsm :: [Instruction] -> CodeGen String
 ppAsm = pure . unlines . map ppInstruction

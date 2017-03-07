@@ -33,37 +33,6 @@ data PrimOp a
   | Dec (Expr a)
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData, Functor)
 
---------------
--- Assembly --
---------------
-
--- | The Instruction type
---   represents an x86 assembly instruction
-data Instruction
-  = IMov Arg Arg
-  | IAdd Arg Arg
-  | ISub Arg Arg
-  | ICmp Arg Arg
-  | IJmp  String Int
-  | IJe   String Int
-  | Label String Int
-  deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
-
--- | The Arg type
---   represents an x86 assembly argument to an instruction
-data Arg
-  = Const Int
-  | Reg Reg
-  | RegOffset Reg Int
-  deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
-
--- | The Reg type
---   represents an x86 assembly register
-data Reg
-  = EAX
-  | ESP
-  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
-
 ---------------------
 -- Class Instances --
 ---------------------

@@ -8,6 +8,7 @@ import System.IO
 import System.Exit
 import System.Environment
 
+import Language.Nyanpasu.Assembly.X86 as Export
 import Language.Nyanpasu.LL as Export
 import Language.Nyanpasu.Error as Export
 

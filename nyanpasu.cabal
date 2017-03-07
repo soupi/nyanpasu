@@ -20,8 +20,9 @@ library
      Language.Nyanpasu
      Language.Nyanpasu.LL
      Language.Nyanpasu.LL.AST
-     Language.Nyanpasu.LL.CodeGen
      Language.Nyanpasu.LL.Interpreter
+     Language.Nyanpasu.LL.CodeGenUtils
+     Language.Nyanpasu.Assembly.X86
      Language.Nyanpasu.Error
      Language.Nyanpasu.Utils
   other-modules:

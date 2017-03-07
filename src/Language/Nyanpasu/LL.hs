@@ -4,5 +4,5 @@ module Language.Nyanpasu.LL
 where
 
 import Language.Nyanpasu.LL.AST as Export
-import Language.Nyanpasu.LL.CodeGen as Export hiding (Env)
+import Language.Nyanpasu.LL.CodeGenUtils as Export hiding (Env)
 import Language.Nyanpasu.LL.Interpreter as Export hiding (Env)
