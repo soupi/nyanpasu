@@ -32,7 +32,7 @@ run:
 .PHONY: sample
 
 sample:
-	make PROGRAM="Let () \\\"a\\\" (Num () 10) (Let () \\\"c\\\" (Let () \\\"b\\\" (PrimOp () (Inc (Idn () \\\"a\\\"))) (Let () \\\"d\\\" (PrimOp () (Inc (Idn () \\\"b\\\"))) (PrimOp () (Inc (Idn () \\\"b\\\"))))) (PrimOp () (Inc (Idn () \\\"c\\\"))))" run
+	make run PROGRAM="Let () \\\"a\\\" (Atom (Num () 10)) (Let () \\\"c\\\" (Let () \\\"b\\\" (PrimOp () Inc (Idn () \\\"a\\\")) (Let () \\\"d\\\" (PrimOp () Inc (Idn () \\\"b\\\")) (PrimOp () Inc (Idn () \\\"b\\\")))) (PrimOp () Inc (Idn () \\\"c\\\")))"
 
 
 .PHONY: clean

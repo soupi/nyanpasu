@@ -19,15 +19,22 @@ interpret =
 
 runInterpreter :: Expr a -> Interpreter Int
 runInterpreter = \case
-  Num _ i ->
+  Atom (Num _ i) ->
     pure i
 
-  PrimOp _ prim -> case prim of
-    Inc e ->
+  PrimOp _ op e -> case op of
+    Inc ->
       (+1) <$> runInterpreter e
 
-    Dec e ->
+    Dec ->
       (\x -> x-1) <$> runInterpreter e
+
+  PrimBinOp _ op e1 e2 -> case op of
+    Add ->
+      (+) <$> runInterpreter e1 <*> runInterpreter e2
+
+    Sub ->
+      (-) <$> runInterpreter e1 <*> runInterpreter e2
 
   Let _ binder bind e -> do
     r <- runInterpreter bind

@@ -11,7 +11,7 @@ import GHC.Generics
 import Control.DeepSeq
 import Control.Monad.Except
 
-data Error
+newtype Error
   = Error String
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 

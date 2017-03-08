@@ -20,6 +20,7 @@ library
      Language.Nyanpasu
      Language.Nyanpasu.LL
      Language.Nyanpasu.LL.AST
+     Language.Nyanpasu.LL.ANF
      Language.Nyanpasu.LL.Interpreter
      Language.Nyanpasu.LL.CodeGenUtils
      Language.Nyanpasu.Assembly.X86
@@ -35,6 +36,7 @@ library
     ,mtl
     ,syb
     ,deepseq
+    ,groom
     ,optparse-generic >= 1.1.0 && < 2.0
     ,ansi-terminal >= 0.6.2 && < 0.7
     ,rainbow >= 0.28.0.0 && < 0.29
@@ -80,6 +82,7 @@ test-suite test
     Simple
     Interpreter
   build-depends:       base
+                     , groom
                      , text
                      , tasty
                      , tasty-hunit

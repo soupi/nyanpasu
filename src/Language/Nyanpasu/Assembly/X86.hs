@@ -5,10 +5,10 @@
 
 module Language.Nyanpasu.Assembly.X86 where
 
-import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.LL.AST
+import Language.Nyanpasu.LL.ANF
 import Language.Nyanpasu.LL.CodeGenUtils
+import qualified Language.Nyanpasu.LL.AST as AST
 
 import Data.Data
 import GHC.Generics
@@ -18,6 +18,9 @@ import Data.Char (toLower)
 import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
+
+-- import Text.Groom
+-- import Debug.Trace
 
 --------------
 -- Assembly --
@@ -50,64 +53,74 @@ data Reg
   | ESP
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
+newtype Assembly = Assembly String
+  deriving (Eq, Ord, Generic, NFData, Data, Typeable)
+
+instance Show Assembly where
+  show (Assembly asmStr) = asmStr
 
 ---------------------
 -- Code Generation --
 ---------------------
 
-compileProgram :: Expr () -> Either Error String
-compileProgram (assignLabels -> e) = runExcept . flip evalStateT initState $ do
-  compiled <- compileExpr e
-  asmStr   <- ppAsm compiled
-  pure $
-    unlines
-      [ prelude
-      , asmStr
-      , suffix
-      ]
-
-  where
-    prelude =
+compileProgram :: AST.Expr () -> Either Error Assembly
+compileProgram expr = do
+  e <- {- (\e -> trace (groom e) e) <$> -}
+    runExprToANF expr
+  runExcept . flip evalStateT initState $ do
+    compiled <- compileExpr e
+    asmStr   <- ppAsm compiled
+    pure $ Assembly $
       unlines
-        [ "section .text"
-        , "global my_code"
-        , "my_code:"
+        [ prelude
+        , asmStr
+        , suffix
         ]
-    suffix = "ret"
+
+    where
+      prelude =
+        unlines
+          [ "section .text"
+          , "global my_code"
+          , "my_code:"
+          ]
+      suffix = "ret"
 
 
 compileExpr :: Expr Int -> CodeGen [Instruction]
 compileExpr = \case
-  Num _ i ->
-    pure [ IMov (Reg EAX) (Const i) ]
+  Atom atom -> case atom of
+    Num _ i ->
+      pure [ IMov (Reg EAX) (Const i) ]
 
-  PrimOp _ prim -> case prim of
-    Inc e -> do
-      rest <- compileExpr e
-      pure $
-        rest <> [ IAdd (Reg EAX) (Const 1) ]
+    Idn _ addr -> do
+      pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
 
-    Dec e -> do
-      rest <- compileExpr e
-      pure $
-        rest <> [ ISub (Reg EAX) (Const 1) ]
 
-  Let _ name binder body -> do
+  PrimOp _ op a -> do
+    pure $
+      [ IMov (Reg EAX) (compileAtom a)
+      , compileOp op (Reg EAX)
+      ]
+
+  PrimBinOp _ op a1 a2 -> do
+    pure $
+      [ IMov (Reg EAX) (compileAtom a1)
+      , compileBinOp op (Reg EAX) (compileAtom a2)
+      ]
+
+
+  Let _ addr binder body -> do
     asm <- concat <$> sequence
       [ compileExpr binder
-      , do addr <- insertVar name
-           pure [ IMov (RegOffset ESP addr) (Reg EAX) ]
+      , pure [ IMov (RegOffset ESP addr) (Reg EAX) ]
       , compileExpr body
       ]
     popVar
     pure asm
 
-  Idn _ name -> do
-    addr <- llookupM cgSymbols name
-    pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
-
   If path test true false -> do
-   testAsm  <- compileExpr test
+   testAsm  <- compileExpr (Atom test)
    trueAsm  <- compileExpr true
    falseAsm <- compileExpr false
    pure $ concat
@@ -124,6 +137,26 @@ compileExpr = \case
      ,  [ Label "if_done" path ]
      ]
    
+compileAtom :: Atom a -> Arg
+compileAtom = \case
+  Num _ i ->
+    Const i
+  Idn _ addr ->
+    RegOffset ESP addr
+
+compileOp :: PrimOp -> Arg -> Instruction
+compileOp op arg = case op of
+  Inc -> IAdd arg (Const 1)
+  Dec -> ISub arg (Const 1)
+
+compileBinOp :: PrimBinOp -> Arg -> Arg -> Instruction
+compileBinOp op arg1 arg2 = case op of
+  Add -> IAdd arg1 arg2
+  Sub -> ISub arg1 arg2
+
+------------------------
+-- To Assembly String --
+------------------------
 
 ppAsm :: [Instruction] -> CodeGen String
 ppAsm = pure . unlines . map ppInstruction

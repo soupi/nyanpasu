@@ -44,7 +44,7 @@ run = do
           hPutStrLn stderr (displayError err)
           exitFailure
         Right rs ->
-          putStrLn rs
+          print rs
 
     _ -> do
       hPutStrLn stderr "Usage: nyanpasu \"<expr>\""
@@ -79,5 +79,6 @@ samples =
         (idn "a")
         (if' (num 0) (num 5) (num 7))
         (num 0)
+  , add (num 7) (num 10)
   ]
 
