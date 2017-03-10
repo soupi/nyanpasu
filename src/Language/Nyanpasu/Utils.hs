@@ -26,3 +26,11 @@ llookupM getter key = do
       throwErr $ "Undefined variable '" <> key <> "'."
     Just v ->
       pure v
+
+lookupErr :: (Show k, Ord k, MonadError Error m) => k -> M.Map k v -> m v
+lookupErr key env = do
+  case M.lookup key env of
+    Nothing ->
+      throwErr $ "Undefined variable '" <> show key <> "'."
+    Just v ->
+      pure v

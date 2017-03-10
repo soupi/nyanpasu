@@ -24,12 +24,15 @@ library
      Language.Nyanpasu.LL.Interpreter
      Language.Nyanpasu.LL.CodeGenUtils
      Language.Nyanpasu.Assembly.X86
+     Language.Nyanpasu.Assembly.X86.CodeGen
+     Language.Nyanpasu.Assembly.X86.Interpreter
      Language.Nyanpasu.Error
      Language.Nyanpasu.Utils
   other-modules:
   build-depends:
      base >= 4.7 && < 5
     ,containers
+    ,vector
     ,bifunctors
     ,groom
     ,transformers
@@ -37,7 +40,9 @@ library
     ,syb
     ,deepseq
     ,groom
-    ,optparse-generic >= 1.1.0 && < 2.0
+    ,text
+    ,bytestring
+    ,optparse-applicative
     ,ansi-terminal >= 0.6.2 && < 0.7
     ,rainbow >= 0.28.0.0 && < 0.29
     ,megaparsec >= 5.0.0 && < 6

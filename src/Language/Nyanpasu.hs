@@ -1,6 +1,7 @@
 module Language.Nyanpasu
   ( module Export
   , run
+  , samples
   )
 where
 
@@ -8,9 +9,9 @@ import System.IO
 import System.Exit
 import System.Environment
 
-import Language.Nyanpasu.Assembly.X86 as Export
 import Language.Nyanpasu.LL as Export
 import Language.Nyanpasu.Error as Export
+import qualified Language.Nyanpasu.Assembly.X86 as X86
 
 run :: IO ()
 run = do
@@ -22,7 +23,15 @@ run = do
           exitFailure
         Right rs ->
           putStrLn (show rs)
-      
+
+    ["run", expr] ->
+      case X86.interpret (read expr :: Expr ()) of
+        Left err -> do
+          hPutStrLn stderr (displayError err)
+          exitFailure
+        Right rs ->
+          print rs
+
     "samples":rest ->
       putStrLn $ unlines $ map (escape rest . show) samples
         where
@@ -39,7 +48,7 @@ run = do
                 '"' -> [ '\\', '\\', '\\', '"' ]
                 x   -> [ x ]
     [expr] ->
-      case compileProgram (read expr :: Expr ()) of
+      case X86.compileProgram (read expr :: Expr ()) of
         Left err -> do
           hPutStrLn stderr (displayError err)
           exitFailure
