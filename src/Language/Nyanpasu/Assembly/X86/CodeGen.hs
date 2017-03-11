@@ -55,6 +55,7 @@ data Reg
   | ESP
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
+-- | Output
 newtype Assembly = Assembly String
   deriving (Eq, Ord, Generic, NFData, Data, Typeable)
 
@@ -65,6 +66,7 @@ instance Show Assembly where
 -- Code Generation --
 ---------------------
 
+-- | Compile an expression and output an assembly string
 compileProgram :: AST.Expr () -> Either Error Assembly
 compileProgram expr = do
     asmStr <- ppAsm <$> compileExprRaw expr
@@ -84,6 +86,7 @@ compileProgram expr = do
           ]
       suffix = "ret"
 
+-- | Compile an expression and output a assembly list of instructions
 compileExprRaw :: AST.Expr () -> Either Error [Instruction]
 compileExprRaw expr = do
   e <- {- (\e -> trace (groom e) e) <$> -}
@@ -91,6 +94,7 @@ compileExprRaw expr = do
   runExcept . flip evalStateT initState $ do
     compileExpr e
 
+-- | Compile an expression to a list of instructions
 compileExpr :: Expr Int -> CodeGen [Instruction]
 compileExpr = \case
   Atom atom -> case atom of
@@ -140,6 +144,7 @@ compileExpr = \case
      ,  [ Label ("if_done", path) ]
      ]
 
+-- | Compile an immediate value to an x86 argument
 compileAtom :: Atom a -> Arg
 compileAtom = \case
   Num _ i ->
@@ -147,11 +152,13 @@ compileAtom = \case
   Idn _ addr ->
     RegOffset ESP addr
 
+-- | Compile a PrimOp and Arg to an x86 Instruction
 compileOp :: PrimOp -> Arg -> Instruction
 compileOp op arg = case op of
   Inc -> IAdd arg (Const 1)
   Dec -> ISub arg (Const 1)
 
+-- | Compile a PrimBinOp and two Arg to an x86 Instruction
 compileBinOp :: PrimBinOp -> Arg -> Arg -> Instruction
 compileBinOp op arg1 arg2 = case op of
   Add -> IAdd arg1 arg2
@@ -161,9 +168,11 @@ compileBinOp op arg1 arg2 = case op of
 -- To Assembly String --
 ------------------------
 
+-- | Pretty print a list of instructions to an assembly string
 ppAsm :: [Instruction] -> String
 ppAsm = unlines . map ppInstruction
 
+-- | Pretty print an instruction to an assembly string
 ppInstruction :: Instruction -> String
 ppInstruction = \case
   IMov dest src ->
@@ -181,10 +190,12 @@ ppInstruction = \case
   Label lbl ->
     ppLabel lbl <> ":"
 
+-- | Pretty print a label
 ppLabel :: Label -> String
 ppLabel (lbl, i) =
   lbl <> "_" <> show i
 
+-- | Pretty print an operation with two arguments
 ppOp :: String -> Arg -> Arg -> String
 ppOp cmd dest src =
     unwords
@@ -193,6 +204,7 @@ ppOp cmd dest src =
       , ppArg src
       ]
 
+-- | Pretty print an argument
 ppArg :: Arg -> String
 ppArg = \case
   Const i -> show i
@@ -200,6 +212,7 @@ ppArg = \case
   RegOffset reg addr ->
     "[" <> ppReg reg <> " - 4*" <> show addr <> "]"
 
+-- | Pretty print a register
 ppReg :: Reg -> String
 ppReg = map toLower . show
 

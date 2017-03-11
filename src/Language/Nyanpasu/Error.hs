@@ -1,4 +1,4 @@
-{- | Definition of the errors
+{- | Error data type
 -}
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}

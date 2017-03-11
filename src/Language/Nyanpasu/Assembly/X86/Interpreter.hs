@@ -1,4 +1,4 @@
-{- | An interpreter for X86
+{- | An interpreter for x86
 -}
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
@@ -14,6 +14,8 @@ import Language.Nyanpasu.Assembly.X86.CodeGen
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.Utils
 
+
+-- | Representation of the machine state
 data Machine = Machine
   { stack :: M.Map Int Int
   , regs :: M.Map Reg Int
@@ -21,11 +23,22 @@ data Machine = Machine
   }
   deriving (Show, Read, Eq, Ord)
 
+-- | An instruction tree
+--
+--   Each Label points to the list of instructions that starts from it
+--
+--   A jmp instruction will lookup the label in the Map
+--
 type Instructions
   = M.Map Label [Instruction]
 
+
+-- | Create an instructions tree from a list of Instructions
+--
+--   May fail if a label is redefined
+--
 mkInstructions :: [Instruction] -> Either Error Instructions
-mkInstructions = go M.empty ("start",-1) []
+mkInstructions = go M.empty ("start", -1) []
   where
     go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either Error Instructions
     go insts lbl lblInsts = \case
@@ -44,9 +57,11 @@ mkInstructions = go M.empty ("start",-1) []
 initMachine :: Machine
 initMachine = Machine M.empty M.empty False
 
+-- | Compile and interpret an AST.Expr
 interpret :: Expr () -> Either Error Int
 interpret = runInterpreter <=< compileExprRaw
 
+-- | Execute instructions
 runInterpreter :: [Instruction] -> Either Error Int
 runInterpreter instructions = do
   insts <- mkInstructions instructions
@@ -54,6 +69,7 @@ runInterpreter instructions = do
    interpreterStep initMachine insts =<<
      lookupErr ("start", -1) insts
 
+-- | One step of instructions
 interpreterStep :: Machine -> Instructions -> [Instruction] -> Either Error Machine
 interpreterStep m insts = \case
   [] -> pure m

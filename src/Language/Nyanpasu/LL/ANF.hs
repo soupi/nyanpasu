@@ -1,4 +1,18 @@
 {- | Administrative Normal Form (ANF) representation of the functional IR
+
+ANF representation states that all operators to a function must be
+immediate values. So we will need to convert complex operations like this:
+
+  inc (inc (num 7))
+
+To something like this:
+
+  let "temp" (inc (num 7)) (inc "temp")
+
+The algorithm to convert from `AST.Expr a` to `ANF.Expr a` can be found in:
+
+Language.Nyanpasu.LL.CodeGenUtils
+
 -}
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
@@ -28,6 +42,7 @@ import Control.DeepSeq
 
 -- | The Expr type
 --   Represents the low level, yet functional IR
+--
 data Expr a
   = Atom (Atom a)
   | PrimOp a PrimOp (Atom a)
@@ -37,12 +52,14 @@ data Expr a
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | An immediate value
+--
 data Atom a
   = Num a Int
   | Idn a Address
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | A stack address for a variable
+--
 type Address = Int
 
 ---------------------

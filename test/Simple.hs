@@ -2,6 +2,7 @@ module Simple where
 
 import Testing
 
+import Language.Nyanpasu (samples)
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST
 import qualified Language.Nyanpasu.LL.Interpreter as LLI
@@ -48,3 +49,4 @@ simple =
         (add (inc $ num 2) (inc $ num 2))
       )
   ]
+  ++ map (compareProgram (@=?)) samples

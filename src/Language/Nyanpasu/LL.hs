@@ -1,3 +1,6 @@
+{- | Re-exporting LL sub-namespace
+-}
+
 module Language.Nyanpasu.LL
   ( module Export
   )

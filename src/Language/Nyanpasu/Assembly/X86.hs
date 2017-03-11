@@ -1,3 +1,6 @@
+{- | Re-exporter for X86 sub-namespace
+-}
+
 module Language.Nyanpasu.Assembly.X86
   ( module Export
   )

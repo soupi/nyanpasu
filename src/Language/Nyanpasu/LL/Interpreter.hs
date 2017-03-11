@@ -1,3 +1,6 @@
+{- | An interpreter for `AST.Expr`
+-}
+
 module Language.Nyanpasu.LL.Interpreter where
 
 import Control.Monad.State

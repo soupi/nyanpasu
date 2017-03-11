@@ -16,12 +16,15 @@ import Control.DeepSeq
 -- Functional IR --
 -------------------
 
+-- | An immediate value
+--
 data Atom a
   = Num a Int
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | The Expr type
 --   Represents the low level, yet functional IR
+--
 data Expr a
   = Atom (Atom a)
   | PrimOp a PrimOp (Expr a)
@@ -33,6 +36,7 @@ data Expr a
 
 -- | The PrimOp type
 --   represents a primitive operation in the language
+--
 data PrimOp
   = Inc
   | Dec
@@ -40,6 +44,7 @@ data PrimOp
 
 -- | The PrimBinOp type
 --   represents a primitive binary operation in the language
+--
 data PrimBinOp
   = Add
   | Sub
@@ -99,9 +104,9 @@ setAnn ann = \case
   Let _ n b e -> Let ann n b e
   If _ t f' t' -> If ann t f' t'
 
---------------------
--- No Annotations --
---------------------
+-----------------
+-- AST Helpers --
+-----------------
 
 num :: Int -> Expr ()
 num = Atom . Num ()
