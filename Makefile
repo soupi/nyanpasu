@@ -23,7 +23,7 @@ test:
 run:
 	stack build --fast &&\
 	mkdir -p output &&\
-	stack exec nyanpasu -- "${PROGRAM}" > output/code.asm &&\
+	echo "${PROGRAM}" | stack exec nyanpasu -- compile > output/code.asm &&\
 	cp wrapper/main.c output/main.c &&\
 	nasm -f elf32 -o output/code.o output/code.asm &&\
 	clang -g -m32 -o output/program output/main.c output/code.o &&\

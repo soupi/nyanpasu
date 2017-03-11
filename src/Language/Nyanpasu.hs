@@ -1,3 +1,8 @@
+{-# LANGUAGE TypeApplications #-}
+
+{- | Entry point
+-}
+
 module Language.Nyanpasu
   ( module Export
   , run
@@ -7,38 +12,50 @@ where
 
 import System.IO
 import System.Exit
-import System.Environment
 
+import Language.Nyanpasu.Utils (readFail)
+import Language.Nyanpasu.Options as Export
 import Language.Nyanpasu.LL as Export
 import Language.Nyanpasu.Error as Export
 import qualified Language.Nyanpasu.Assembly.X86 as X86
 
 run :: IO ()
 run = do
-  getArgs >>= \case
-    ["interpret", expr] ->
-      case interpret (read expr :: Expr ()) of
-        Left err -> do
-          hPutStrLn stderr (displayError err)
-          exitFailure
-        Right rs ->
-          putStrLn (show rs)
-
-    ["run", expr] ->
-      case X86.interpret (read expr :: Expr ()) of
+  parseArgs >>= \case
+    Compile -> do
+      expr <- readFail =<< getContents
+      case X86.compileProgram expr of
         Left err -> do
           hPutStrLn stderr (displayError err)
           exitFailure
         Right rs ->
           print rs
 
-    "samples":rest ->
-      putStrLn $ unlines $ map (escape rest . show) samples
+    Interpret -> do
+      expr <- readFail @(Expr ()) =<< getContents
+      case interpret expr of
+        Left err -> do
+          hPutStrLn stderr (displayError err)
+          exitFailure
+        Right rs ->
+          putStrLn (show rs)
+
+    CompileAndInterpret -> do
+      expr <- readFail =<< getContents
+      case X86.interpret expr of
+        Left err -> do
+          hPutStrLn stderr (displayError err)
+          exitFailure
+        Right rs ->
+          print rs
+
+    Samples esc ->
+      putStrLn $ unlines $ map (escape esc . show) samples
         where
           escape = \case
-              ["--escape"] -> concatMap go
-              ["--escape-hard"] -> concatMap gohard
-              _ -> id
+              Just Escape     -> concatMap go
+              Just EscapeHard -> concatMap gohard
+              Nothing    -> id
             where
               go = \case
                 '"' -> [ '\\', '"' ]
@@ -47,18 +64,6 @@ run = do
               gohard = \case
                 '"' -> [ '\\', '\\', '\\', '"' ]
                 x   -> [ x ]
-    [expr] ->
-      case X86.compileProgram (read expr :: Expr ()) of
-        Left err -> do
-          hPutStrLn stderr (displayError err)
-          exitFailure
-        Right rs ->
-          print rs
-
-    _ -> do
-      hPutStrLn stderr "Usage: nyanpasu \"<expr>\""
-      exitFailure
-
 
 samples :: [Expr ()]
 samples =

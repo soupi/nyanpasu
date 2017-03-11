@@ -3,7 +3,10 @@ module Language.Nyanpasu.Utils where
 import qualified Data.Map as M
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Maybe (fromJust)
 import Data.Monoid
+import Data.Typeable (Typeable, typeOf)
+import Text.Read (readMaybe)
 
 import Language.Nyanpasu.Error
 
@@ -34,3 +37,20 @@ lookupErr key env = do
       throwErr $ "Undefined variable '" <> show key <> "'."
     Just v ->
       pure v
+
+readFail :: (Typeable a, Read a) => String -> IO a
+readFail str =
+  let ras = readMaybe str
+  in case ras of
+    Just x -> pure x
+    Nothing ->
+      error $ unlines
+        [ "Could not read the string:"
+        , "  " ++ concatMap pad str
+        , "as the type:"
+        , "  " ++ show (typeOf $ fromJust ras)
+        ]
+  where
+    pad = \case
+      '\n' -> "\n  "
+      x -> [x]
