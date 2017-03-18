@@ -2,7 +2,10 @@
 module Interpreter where
 
 import Testing
+import Control.Monad
+import Data.Bits
 
+import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST
 import qualified Language.Nyanpasu.LL.Interpreter as LLI
@@ -13,37 +16,37 @@ tests =
   testGroup "Interpreter" $
     mconcat
       [ zipWith (\n t -> testCase ("LLI.Interpreter " ++ show n) t) [1..] (inter LLI.interpret)
-      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter X86.interpret)
+      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (LLI.int32ToVal <=< X86.interpret))
       ]
 
-inter :: (Expr () -> Either Error Int) -> [Assertion]
+inter :: (Expr () -> Either Error LLI.Val) -> [Assertion]
 inter interpret =
-  [ interpret (num 5) @=?
-      Right 5
+  [ interpret (num_ 5) @=?
+      Right (Num () 5)
 
-  , interpret (dec $ dec $ num 8) @=?
-      Right 6
+  , interpret (dec_ $ dec_ $ num_ 8) @=?
+      Right (Num () 6)
 
-  , interpret (inc $ dec $ num 7) @=?
-      Right 7
+  , interpret (inc_ $ dec_ $ num_ 7) @=?
+      Right (Num () 7)
 
-  , interpret (let' "x" (inc $ num 6) $ dec $ inc $ inc $ idn "x") @=?
-      Right 8
+  , interpret (let_ "x" (inc_ $ num_ 6) $ dec_ $ inc_ $ inc_ $ idn_ "x") @=?
+      Right (Num () 8)
 
-  , interpret (let' "x" (inc $ num 6) $ let' "x" (dec $ dec $ num 1) $ inc $ idn "x") @=?
-      Right 0
-  , interpret (let' "x" (inc $ num 6) $ let' "y" (dec $ dec $ num 1) $ inc $ idn "x") @=?
-      Right 8
+  , interpret (let_ "x" (inc_ $ num_ 6) $ let_ "x" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
+      Right (Num () 0)
+  , interpret (let_ "x" (inc_ $ num_ 6) $ let_ "y" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
+      Right (Num () 8)
 
   , interpret
-      (let'
+      (let_
         "a"
-        (num 1)
-        $ if'
-          (idn "a")
-          (if' (num 0) (num 5) (num 7))
-          (num 0))
+        true_
+        $ if_
+          (idn_ "a")
+          (if_ false_ (num_ 5) (num_ 7))
+          (num_ 0))
       @=?
-      Right 7
+      Right (Num () 7)
 
   ]

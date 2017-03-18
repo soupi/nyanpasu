@@ -10,6 +10,7 @@ module Language.Nyanpasu
   )
 where
 
+import Data.Bits
 import System.IO
 import System.Exit
 
@@ -46,7 +47,7 @@ run = do
         Left err -> do
           hPutStrLn stderr (displayError err)
           exitFailure
-        Right rs ->
+        Right ((`shiftR` 1) -> rs) ->
           print rs
 
     Samples esc ->
@@ -67,32 +68,32 @@ run = do
 
 samples :: [Expr ()]
 samples =
-  [ num 7
-  , inc $ dec $ dec $ inc $ dec $ inc $ inc $ num 7
-  , let' "x" (dec $ num 1) (idn "x")
-  , let' "x" (dec $ num 1) (let' "x" (inc $ inc $ idn "x") (inc $ idn "x"))
-  , let'
+  [ num_ 7
+  , inc_ $ dec_ $ dec_ $ inc_ $ dec_ $ inc_ $ inc_ $ num_ 7
+  , let_ "x" (dec_ $ num_ 1) (idn_ "x")
+  , let_ "x" (dec_ $ num_ 1) (let_ "x" (inc_ $ inc_ $ idn_ "x") (inc_ $ idn_ "x"))
+  , let_
       "a"
-      (num 10)
-      $ let'
+      (num_ 10)
+      $ let_
           "c"
-          (let'
+          (let_
             "b"
-            (inc $ idn "a")
-            (let'
+            (inc_ $ idn_ "a")
+            (let_
               "d"
-              (inc $ idn "b")
-              (inc $ idn "b")
+              (inc_ $ idn_ "b")
+              (inc_ $ idn_ "b")
             )
           )
-        (inc $ idn "c")
-  , let'
+        (inc_ $ idn_ "c")
+  , let_
       "a"
-      (num 1)
-      $ if'
-        (idn "a")
-        (if' (num 0) (num 5) (num 7))
-        (num 0)
-  , add (num 7) (num 10)
+      true_
+      $ if_
+        (idn_ "a")
+        (if_ false_ (num_ 5) (num_ 7))
+        (num_ 0)
+  , add_ (num_ 7) (num_ 10)
   ]
 

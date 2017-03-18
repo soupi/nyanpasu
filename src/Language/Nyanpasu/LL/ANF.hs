@@ -28,8 +28,16 @@ module Language.Nyanpasu.LL.ANF
   )
 where
 
-import Language.Nyanpasu.LL.AST (PrimOp(..), PrimBinOp(..))
-import qualified Language.Nyanpasu.LL.AST as Export (PrimOp(..), PrimBinOp(..))
+import Language.Nyanpasu.LL.AST as Export
+  ( PrimOp(..)
+  , NumOp(..)
+  , BoolOp(..)
+  , PrimBinOp(..)
+  , NumBinOp(..)
+  , BoolBinOp(..)
+  )
+
+import Language.Nyanpasu.Utils
 
 import Data.Monoid
 import Data.Data
@@ -54,13 +62,14 @@ data Expr a
 -- | An immediate value
 --
 data Atom a
-  = Num a Int
+  = Num a Int32
+  | Bool a Bool
   | Idn a Address
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | A stack address for a variable
 --
-type Address = Int
+type Address = Int32
 
 ---------------------
 -- Class Instances --
@@ -69,11 +78,13 @@ type Address = Int
 instance Foldable Atom where
   foldMap f = \case
     Num a _ -> f a
+    Bool a _ -> f a
     Idn a _ -> f a
 
 instance Traversable Atom where
   traverse f = \case
     Num a i -> flip Num i <$> f a
+    Bool a n -> flip Bool n <$> f a
     Idn a n -> flip Idn n <$> f a
 
 instance Foldable Expr where
@@ -100,6 +111,7 @@ instance Traversable Expr where
 getAnn :: Expr a -> a
 getAnn = \case
   Atom (Num a _) -> a
+  Atom (Bool a _) -> a
   Atom (Idn a _) -> a
   PrimOp a _ _ -> a
   PrimBinOp a _ _ _ -> a
@@ -109,6 +121,7 @@ getAnn = \case
 setAnn :: a -> Expr a -> Expr a
 setAnn ann = \case
   Atom (Num _ e) -> Atom (Num ann e)
+  Atom (Bool _ e) -> Atom (Bool ann e)
   Atom (Idn _ e) -> Atom (Idn ann e)
   PrimOp _ op e -> PrimOp ann op e
   PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2

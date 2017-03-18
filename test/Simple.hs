@@ -1,6 +1,7 @@
 module Simple where
 
 import Testing
+import Data.Int (Int16)
 
 import Language.Nyanpasu (samples)
 import Language.Nyanpasu.Error
@@ -17,36 +18,36 @@ tests =
       ]
 
 compareProgram ::
-  (Either Error Int -> Either Error Int -> t) -> Expr () -> t
+  (Either Error LLI.Val -> Either Error LLI.Val -> t) -> Expr () -> t
 compareProgram cmp e =
-  X86.interpret e `cmp` LLI.interpret e
+  (LLI.int32ToVal =<< X86.interpret e) `cmp` LLI.interpret e
 
-qc :: [(Int -> Bool)]
+qc :: [(Int16 -> Bool)]
 qc =
-  [ \i -> compareProgram (==) (num i)
+  [ \i -> compareProgram (==) (num_ $ fromIntegral i)
   ]
 
 simple :: [Assertion]
 simple =
-  [ compareProgram (@=?) (inc $ num 7)
+  [ compareProgram (@=?) (inc_ $ num_ 7)
 
-  , compareProgram (@=?) (dec $ num 7)
+  , compareProgram (@=?) (dec_ $ num_ 7)
 
-  , compareProgram (@=?) (inc $ inc $ dec $ num 7)
+  , compareProgram (@=?) (inc_ $ inc_ $ dec_ $ num_ 7)
 
   , compareProgram (@=?)
-      (let'
+      (let_
          "a"
-         (num 1)
-         $ if'
-           (idn "a")
-           (if' (num 0) (num 5) (num 7))
-           (num 0))
+         true_
+         $ if_
+           (idn_ "a")
+           (if_ false_ (num_ 5) (num_ 7))
+           (num_ 0))
 
   , compareProgram (@=?)
-      (add
-        (add (inc $ num 2) (inc $ num 2))
-        (add (inc $ num 2) (inc $ num 2))
+      (add_
+        (add_ (inc_ $ num_ 2) (inc_ $ num_ 2))
+        (add_ (inc_ $ num_ 2) (inc_ $ num_ 2))
       )
   ]
   ++ map (compareProgram (@=?)) samples

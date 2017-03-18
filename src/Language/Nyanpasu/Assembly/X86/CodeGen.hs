@@ -5,6 +5,7 @@
 
 module Language.Nyanpasu.Assembly.X86.CodeGen where
 
+import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.ANF
 import Language.Nyanpasu.LL.CodeGenUtils
@@ -14,6 +15,8 @@ import Data.Data
 import GHC.Generics
 import Control.DeepSeq
 
+import Data.Bits
+import Data.Bool
 import Data.Char (toLower)
 import Data.Monoid
 import Control.Monad.State
@@ -32,20 +35,27 @@ data Instruction
   = IMov Arg Arg
   | IAdd Arg Arg
   | ISub Arg Arg
+  | IMul Arg Arg
   | ICmp Arg Arg
+  | IXor Arg Arg
+  | IAnd Arg Arg
+  | IShl Arg Arg
+  | IShr Arg Arg
+  | ISar Arg Arg
+  | ISal Arg Arg
   | IJmp  Label
   | IJe   Label
   | Label Label
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
-type Label = (String, Int)
+type Label = (String, Int32)
 
 -- | The Arg type
 --   represents an x86 assembly argument to an instruction
 data Arg
-  = Const Int
+  = Const Int32
   | Reg Reg
-  | RegOffset Reg Int
+  | RegOffset Reg Int32
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 -- | The Reg type
@@ -95,26 +105,29 @@ compileExprRaw expr = do
     compileExpr e
 
 -- | Compile an expression to a list of instructions
-compileExpr :: Expr Int -> CodeGen [Instruction]
+compileExpr :: Expr Int32 -> CodeGen [Instruction]
 compileExpr = \case
   Atom atom -> case atom of
-    Num _ i ->
-      pure [ IMov (Reg EAX) (Const i) ]
-
     Idn _ addr -> do
       pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
 
+    _ -> do
+      res <- compileAtom atom
+      pure [ IMov (Reg EAX) res ]
+
   PrimOp _ op a -> do
+    im <- compileAtom a
     pure $
-      [ IMov (Reg EAX) (compileAtom a)
+      [ IMov (Reg EAX) im
       , compileOp op (Reg EAX)
       ]
 
   PrimBinOp _ op a1 a2 -> do
+    im1 <- compileAtom a1
+    im2 <- compileAtom a2
     pure $
-      [ IMov (Reg EAX) (compileAtom a1)
-      , compileBinOp op (Reg EAX) (compileAtom a2)
-      ]
+      [ IMov (Reg EAX) im1 ]
+      <> compileBinOp op (Reg EAX) im2
 
 
   Let _ addr binder body -> do
@@ -132,7 +145,7 @@ compileExpr = \case
    falseAsm <- compileExpr false
    pure $ concat
      [ testAsm
-     , [ ICmp (Reg EAX) (Const 0)
+     , [ ICmp (Reg EAX) (Const falseValue)
        , IJe   ("if_false", path)
        , Label ("if_true",  path)
        ]
@@ -145,24 +158,46 @@ compileExpr = \case
      ]
 
 -- | Compile an immediate value to an x86 argument
-compileAtom :: Atom a -> Arg
+compileAtom :: Atom a -> CodeGen Arg
 compileAtom = \case
-  Num _ i ->
-    Const i
+  Num _ i
+    | i > 1073741823 || i < -1073741824 ->
+      throwErr $ "Integer overflow: " <> show i
+    | otherwise ->
+      pure $ Const (i `shiftL` 1)
+
+  Bool _ b ->
+    pure $ Const $ bool falseValue trueValue b
+
   Idn _ addr ->
-    RegOffset ESP addr
+    pure $ RegOffset ESP addr
 
 -- | Compile a PrimOp and Arg to an x86 Instruction
 compileOp :: PrimOp -> Arg -> Instruction
-compileOp op arg = case op of
-  Inc -> IAdd arg (Const 1)
-  Dec -> ISub arg (Const 1)
+compileOp op_ arg = case op_ of
+  NumOp op -> case op of
+    Inc -> IAdd arg (Const $ shiftL 1 1)
+    Dec -> ISub arg (Const $ shiftL 1 1)
+
+  BoolOp op -> case op of
+    Not -> IXor arg (Const boolTag)
 
 -- | Compile a PrimBinOp and two Arg to an x86 Instruction
-compileBinOp :: PrimBinOp -> Arg -> Arg -> Instruction
-compileBinOp op arg1 arg2 = case op of
-  Add -> IAdd arg1 arg2
-  Sub -> ISub arg1 arg2
+compileBinOp :: PrimBinOp -> Arg -> Arg -> [Instruction]
+compileBinOp op_ arg1 arg2 = case op_ of
+  NumBinOp op -> case op of
+    Add -> [ IAdd arg1 arg2 ]
+    Sub -> [ ISub arg1 arg2 ]
+    Mul ->
+      [ IMul arg1 arg2
+      , ISar arg1 (Const 1)
+      ]
+
+    Less ->
+      [ ISub arg1 arg2
+      , IAnd arg1 (Const $ trueValue - boolTag)
+      , IAdd arg1 (Const 1)
+      ]
 
 ------------------------
 -- To Assembly String --
@@ -181,8 +216,22 @@ ppInstruction = \case
     ppOp "add" dest src
   ISub dest src ->
     ppOp "sub" dest src
+  IMul dest src ->
+    ppOp "mul" dest src
+  IXor dest src ->
+    ppOp "xor" dest src
+  IAnd dest src ->
+    ppOp "and" dest src
   ICmp dest src ->
     ppOp "cmp" dest src
+  IShr dest src ->
+    ppOp "shr" dest src
+  ISar dest src ->
+    ppOp "sar" dest src
+  IShl dest src ->
+    ppOp "shl" dest src
+  ISal dest src ->
+    ppOp "sal" dest src
   IJmp lbl ->
     "jmp " <> ppLabel lbl
   IJe  lbl ->
@@ -216,3 +265,15 @@ ppArg = \case
 ppReg :: Reg -> String
 ppReg = map toLower . show
 
+---------------
+-- Constants --
+---------------
+
+boolTag :: Int32
+boolTag = 0x1
+
+trueValue :: Int32
+trueValue = -2147483647
+
+falseValue :: Int32
+falseValue = 0x1

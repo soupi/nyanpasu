@@ -5,6 +5,8 @@
 
 module Language.Nyanpasu.Assembly.X86.Interpreter where
 
+import Data.Bits
+import Data.Bool
 import Data.Maybe
 import Control.Monad.Except
 import qualified Data.Map as M
@@ -17,8 +19,8 @@ import Language.Nyanpasu.Utils
 
 -- | Representation of the machine state
 data Machine = Machine
-  { stack :: M.Map Int Int
-  , regs :: M.Map Reg Int
+  { stack :: M.Map Int32 Int32
+  , regs :: M.Map Reg Int32
   , zf :: Bool
   }
   deriving (Show, Read, Eq, Ord)
@@ -58,11 +60,11 @@ initMachine :: Machine
 initMachine = Machine M.empty M.empty False
 
 -- | Compile and interpret an AST.Expr
-interpret :: Expr () -> Either Error Int
+interpret :: Expr () -> Either Error Int32
 interpret = runInterpreter <=< compileExprRaw
 
 -- | Execute instructions
-runInterpreter :: [Instruction] -> Either Error Int
+runInterpreter :: [Instruction] -> Either Error Int32
 runInterpreter instructions = do
   insts <- mkInstructions instructions
   lookupErr EAX . regs =<<
@@ -78,20 +80,35 @@ interpreterStep m insts = \case
       Label l ->
         throwErr $ "Labels are not supposed to exist in this stage: " ++ ppLabel l
 
-      IMov a1 a2 -> do
-        toSrc <- getSrcF (const id) m a1
-        dest  <- getDest m a2
-        interpreterStep (toSrc dest) insts next
+      IMov a1 a2 -> binModSrc (pure .* const id) a1 a2
+      IAdd a1 a2 -> binModSrc (pure .* (+)) a1 a2
+      ISub a1 a2 -> binModSrc (pure .* (-)) a1 a2
+      IMul a1 a2 -> binModSrc (pure .* (*)) a1 a2
+      IAnd a1 a2 -> binModSrc (pure .* (.&.)) a1 a2
+      IXor a1 a2 -> binModSrc (pure .* xor) a1 a2
+      IShl a1 a2 -> binModSrc (pure .* \x y -> shiftL x (fromIntegral y)) a1 a2
+      IShr a1 a2 -> binModSrc (pure .* \x y -> shiftR x (fromIntegral y)) a1 a2
+      ISal a1 a2 ->
+        binModSrc
+          (pure .* \x y ->
+            let
+              signBit = testBit x 31
+              temp = shiftL (clearBit x 31) (fromIntegral y)
+            in bool temp (setBit temp 31) signBit
+          )
+          a1
+          a2
 
-      IAdd a1 a2 -> do
-        toSrc <- getSrcF (+) m a1
-        dest  <- getDest m a2
-        interpreterStep (toSrc dest) insts next
-
-      ISub a1 a2 -> do
-        toSrc <- getSrcF (-) m a1
-        dest  <- getDest m a2
-        interpreterStep (toSrc dest) insts next
+      ISar a1 a2 ->
+        binModSrc
+          (pure .* \x y ->
+            let
+              signBit = testBit x 31
+              temp = shiftR (clearBit x 31) (fromIntegral y)
+            in bool temp (setBit temp 31) signBit
+          )
+          a1
+          a2
 
       ICmp a1 a2 -> do
         a1' <- getDest m a1
@@ -110,21 +127,31 @@ interpreterStep m insts = \case
             else
               pure next
 
+    where
+      binModSrc f a1 a2 = do
+        toSrc <- getSrcF f m a1
+        dest  <- getDest m a2
+        newMachine <- toSrc dest
+        interpreterStep newMachine insts next
 
-getSrcF :: MonadError Error f => (Int -> Int -> Int) -> Machine -> Arg -> f (Int -> Machine)
+getSrcF :: MonadError Error m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
 getSrcF f m = \case
   Reg r -> do
     rv <- getDest m (Reg r)
-    pure $ \i -> m { regs = M.insert r (f rv i) (regs m) }
+    pure $ \i -> do
+      result <- f rv i
+      pure $ m { regs = M.insert r result (regs m) }
 
   RegOffset ESP n -> do
     rv <- getDest m (RegOffset ESP n) `catchError` \_ -> pure 0
-    pure $ \i -> m { stack = M.insert n (f rv i) (stack m) }
+    pure $ \i -> do
+      result <- f rv i
+      pure $ m { stack = M.insert n result (stack m) }
 
   x ->
     throwErr $ "No supported: " ++ show x
 
-getDest :: MonadError Error f => Machine -> Arg -> f Int
+getDest :: MonadError Error m => Machine -> Arg -> m Int32
 getDest m = \case
   Reg r ->
     pure . fromMaybe 0 $ M.lookup r (regs m)

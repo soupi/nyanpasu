@@ -19,7 +19,7 @@ import Control.Monad.Except
 data CodeGenState = CodeGenState
   { cgSymbols :: Env
   , cgCounter :: !Address
-  , cgNamer   :: !Int
+  , cgNamer   :: !Int32
   }
   deriving (Show, Read, Eq, Ord)
 
@@ -55,7 +55,7 @@ popVar = do
   put (CodeGenState (tail env) (addr - 1) namer)
 
 -- | Assign a unique label to all sub-expressions
-assignLabels :: Expr () -> Expr Int
+assignLabels :: Expr () -> Expr Int32
 assignLabels = flip evalState 0 . traverse go
   where
     go () = do
@@ -68,7 +68,7 @@ assignLabels = flip evalState 0 . traverse go
 ------------------------
 
 -- | Use this to run the algorithm
-runExprToANF :: AST.Expr () -> Either Error (Expr Int)
+runExprToANF :: AST.Expr () -> Either Error (Expr Int32)
 runExprToANF astExpr = fmap assignLabels . runExcept . flip evalStateT initState $ exprToANF astExpr
 
 -- | Algorithm to convert an `AST.Expr a` to `ANF.Expr a`
@@ -79,6 +79,9 @@ exprToANF = \case
   -- Atom is already immediate
   AST.Atom (AST.Num a i) ->
     pure $ Atom (Num a i)
+
+  AST.Atom (AST.Bool a b) ->
+    pure $ Atom (Bool a b)
 
   -- convert the argument to anf and add a let if the argument is not immediate
   AST.PrimOp a op e -> do

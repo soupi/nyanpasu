@@ -1,6 +1,7 @@
 module Language.Nyanpasu.Utils where
 
 import qualified Data.Map as M
+import qualified Data.Int as Int (Int32)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Maybe (fromJust)
@@ -54,3 +55,12 @@ readFail str =
     pad = \case
       '\n' -> "\n  "
       x -> [x]
+
+-- | Function composition of 2
+{-# INLINE (.*) #-}
+(.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+(.*) f g = \x y -> f (g x y)
+
+infixr 9 .*
+
+type Int32 = Int.Int32
