@@ -3,8 +3,8 @@
 extern int my_code() asm("my_code");
 
 const int BOOL_TAG   = 0x00000001;
-const int BOOL_TRUE  = -2147483647 & BOOL_TAG;
-const int BOOL_FALSE = 0x0 & BOOL_TAG;
+const int BOOL_TRUE  = 0x80000001;
+const int BOOL_FALSE = 0x0 | BOOL_TAG;
 
 int print(int val) {
   if ((val & BOOL_TAG) == 0) {
@@ -22,5 +22,6 @@ int print(int val) {
 int main(int argc, char** argv) {
   int result = my_code();
   print(result);
+  puts("");
   return 0;
 }

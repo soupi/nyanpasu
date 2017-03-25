@@ -11,12 +11,12 @@ build:
 .PHONY: dev
 
 dev:
-	stack test --fast --file-watch
+	stack test --fast --test-arguments "-j8 --hide-successes" --file-watch
 
 .PHONY: test
 
 test:
-	stack test --fast
+	stack test --fast --test-arguments "-j8"
 
 .PHONY: run
 

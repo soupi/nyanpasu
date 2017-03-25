@@ -1,13 +1,11 @@
 module Simple where
 
 import Testing
-import Data.Int (Int16)
+import Data.Bits
 
 import Language.Nyanpasu (samples)
-import Language.Nyanpasu.Error
+import Language.Nyanpasu.Utils
 import Language.Nyanpasu.LL.AST
-import qualified Language.Nyanpasu.LL.Interpreter as LLI
-import qualified Language.Nyanpasu.Assembly.X86 as X86
 
 tests :: TestTree
 tests =
@@ -17,14 +15,10 @@ tests =
       , zipWith (\n t -> testCase ("Simple " ++ show n) t) [1..] simple
       ]
 
-compareProgram ::
-  (Either Error LLI.Val -> Either Error LLI.Val -> t) -> Expr () -> t
-compareProgram cmp e =
-  (LLI.int32ToVal =<< X86.interpret e) `cmp` LLI.interpret e
-
-qc :: [(Int16 -> Bool)]
+qc :: [(Int32 -> Bool)]
 qc =
-  [ \i -> compareProgram (==) (num_ $ fromIntegral i)
+  [ \i -> compareProgram (==) (num_ $ shiftR i 1)
+  , \i -> compareProgram (==) (eq_ (num_ $ shiftR i 1) (num_ $ shiftR (i + 1) 1))
   ]
 
 simple :: [Assertion]

@@ -39,6 +39,7 @@ data Instruction
   | ICmp Arg Arg
   | IXor Arg Arg
   | IAnd Arg Arg
+  | IOr  Arg Arg
   | IShl Arg Arg
   | IShr Arg Arg
   | ISar Arg Arg
@@ -62,6 +63,8 @@ data Arg
 --   represents an x86 assembly register
 data Reg
   = EAX
+  | EBX
+  | ECX
   | ESP
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
@@ -127,7 +130,7 @@ compileExpr = \case
     im2 <- compileAtom a2
     pure $
       [ IMov (Reg EAX) im1 ]
-      <> compileBinOp op (Reg EAX) im2
+      <> compileBinOp op im2
 
 
   Let _ addr binder body -> do
@@ -182,21 +185,80 @@ compileOp op_ arg = case op_ of
   BoolOp op -> case op of
     Not -> IXor arg (Const boolTag)
 
--- | Compile a PrimBinOp and two Arg to an x86 Instruction
-compileBinOp :: PrimBinOp -> Arg -> Arg -> [Instruction]
-compileBinOp op_ arg1 arg2 = case op_ of
+-- | Compile a PrimBinOp and two Args,
+--   where the first is in EAX and the other is passed to the function,
+--   to an x86 Instruction.
+--
+--   The result will be in EAX.
+--
+compileBinOp :: PrimBinOp -> Arg -> [Instruction]
+compileBinOp op_ arg2 = case op_ of
   NumBinOp op -> case op of
-    Add -> [ IAdd arg1 arg2 ]
-    Sub -> [ ISub arg1 arg2 ]
+    Add -> [ IAdd (Reg EAX) arg2 ]
+    Sub ->
+      [ ISub (Reg EAX) arg2
+      ]
     Mul ->
-      [ IMul arg1 arg2
-      , ISar arg1 (Const 1)
+      [ IMul (Reg EAX) arg2
+      , ISar (Reg EAX) (Const 1)
       ]
 
     Less ->
-      [ ISub arg1 arg2
-      , IAnd arg1 (Const $ trueValue - boolTag)
-      , IAdd arg1 (Const 1)
+      [ ISar (Reg EAX) (Const 1)
+      , IMov (Reg EBX) arg2
+      , ISar (Reg EBX) (Const 1)
+      , ISub (Reg EAX) (Reg EBX)
+      , IAnd (Reg EAX) (Const trueValue)
+      , IOr  (Reg EAX) (Const boolTag)
+      ]
+
+    Eq ->
+      [ ISar (Reg EAX) (Const 1)
+      , IMov (Reg EBX) arg2
+      , ISar (Reg EBX) (Const 1)
+      , IMov (Reg ECX) (Reg EAX)
+      , ISub (Reg EAX) (Reg EBX)
+      , ISub (Reg EBX) (Reg ECX)
+      , IOr  (Reg EAX) (Reg EBX)
+      , IAnd (Reg EAX) (Const trueValue)
+      , IXor (Reg EAX) (Const trueValue)
+      , IOr  (Reg EAX) (Const boolTag)
+      ]
+
+    Greater ->
+      [ ISar (Reg EAX) (Const 1)
+      , IMov (Reg EBX) arg2
+      , ISar (Reg EBX) (Const 1)
+      , ISub (Reg EBX) (Reg EAX)
+      , IMov (Reg EAX) (Reg EBX)
+      , IAnd (Reg EAX) (Const trueValue)
+      , IOr  (Reg EAX) (Const boolTag)
+      ]
+
+    LessEq ->
+      compileBinOp (NumBinOp Greater) arg2 ++
+      [ IXor (Reg EAX) (Const trueValue)
+      , IOr  (Reg EAX) (Const boolTag)
+      ]
+
+    GreaterEq ->
+      compileBinOp (NumBinOp Less) arg2 ++
+      [ IXor (Reg EAX) (Const trueValue)
+      , IOr  (Reg EAX) (Const boolTag)
+      ]
+
+  BoolBinOp op -> case op of
+    And ->
+      [ IAnd (Reg EAX) arg2
+      ]
+
+    Or ->
+      [ IOr (Reg EAX) arg2
+      ]
+
+    Xor ->
+      [ IXor (Reg EAX) arg2
+      , IOr  (Reg EAX) (Const boolTag)
       ]
 
 ------------------------
@@ -222,6 +284,8 @@ ppInstruction = \case
     ppOp "xor" dest src
   IAnd dest src ->
     ppOp "and" dest src
+  IOr  dest src ->
+    ppOp "or"  dest src
   ICmp dest src ->
     ppOp "cmp" dest src
   IShr dest src ->

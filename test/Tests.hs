@@ -2,6 +2,7 @@
 import Testing
 import qualified Simple
 import qualified Interpreter
+import qualified Comparisons
 
 main :: IO ()
 main = defaultMain tests
@@ -12,4 +13,5 @@ tests =
     "Tests"
     [ Simple.tests
     , Interpreter.tests
+    , Comparisons.tests
     ]

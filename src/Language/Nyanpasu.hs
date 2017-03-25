@@ -95,5 +95,12 @@ samples =
         (if_ false_ (num_ 5) (num_ 7))
         (num_ 0)
   , add_ (num_ 7) (num_ 10)
+  , eq_ (add_ (num_ 7) (num_ 10)) (num_ 17)
+  , less_ (add_ (num_ 7) (num_ 10)) (num_ 17)
+  , less_ (add_ (num_ 8) (num_ 10)) (num_ 17)
+  , if_ (less_ (add_ (num_ 8) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
+  , if_ (eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
+  , if_ (eq_ (add_ (num_ 7) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
+  , eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)
   ]
 

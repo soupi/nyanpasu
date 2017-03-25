@@ -6,7 +6,6 @@
 module Language.Nyanpasu.Assembly.X86.Interpreter where
 
 import Data.Bits
-import Data.Bool
 import Data.Maybe
 import Control.Monad.Except
 import qualified Data.Map as M
@@ -86,26 +85,21 @@ interpreterStep m insts = \case
       IMul a1 a2 -> binModSrc (pure .* (*)) a1 a2
       IAnd a1 a2 -> binModSrc (pure .* (.&.)) a1 a2
       IXor a1 a2 -> binModSrc (pure .* xor) a1 a2
-      IShl a1 a2 -> binModSrc (pure .* \x y -> shiftL x (fromIntegral y)) a1 a2
-      IShr a1 a2 -> binModSrc (pure .* \x y -> shiftR x (fromIntegral y)) a1 a2
-      ISal a1 a2 ->
+      IOr  a1 a2 -> binModSrc (pure .* (.|.)) a1 a2
+      ISal a1 a2 -> binModSrc (pure .* \x y -> shiftL x (fromIntegral y)) a1 a2
+      ISar a1 a2 -> binModSrc (pure .* \x y -> shiftR x (fromIntegral y)) a1 a2
+      IShl a1 a2 ->
         binModSrc
           (pure .* \x y ->
-            let
-              signBit = testBit x 31
-              temp = shiftL (clearBit x 31) (fromIntegral y)
-            in bool temp (setBit temp 31) signBit
+            shiftL (clearBit x 31) (fromIntegral y)
           )
           a1
           a2
 
-      ISar a1 a2 ->
+      IShr a1 a2 ->
         binModSrc
           (pure .* \x y ->
-            let
-              signBit = testBit x 31
-              temp = shiftR (clearBit x 31) (fromIntegral y)
-            in bool temp (setBit temp 31) signBit
+            clearBit (shiftR (clearBit x 31) (fromIntegral y)) 31
           )
           a1
           a2

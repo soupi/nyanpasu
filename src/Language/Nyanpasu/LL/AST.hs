@@ -78,6 +78,7 @@ data NumBinOp
 data BoolBinOp
   = And
   | Or
+  | Xor
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 ---------------------
