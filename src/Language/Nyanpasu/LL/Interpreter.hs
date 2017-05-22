@@ -7,33 +7,36 @@ import Data.Bits
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Map as M
-import Text.Groom (groom)
 
-import Language.Nyanpasu.LL.AST
-import Language.Nyanpasu.Error
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
+import Language.Nyanpasu.Error
+import Language.Nyanpasu.LL.AST
 import Language.Nyanpasu.Assembly.X86.CodeGen (trueValue, falseValue, boolTag)
 
 type Val = Atom ()
 
 type Env = M.Map Name Val
 
-type Interpreter a
-  = StateT Env (Except Error) a
+type Interpreter ann a
+  = StateT Env (Except (Error ann)) a
 
-interpret :: Show a => Expr a -> Either Error Val
+interpret :: Show a => Expr a -> Either (Error a) Val
 interpret =
   runExcept . flip evalStateT M.empty . runInterpreter
 
-runInterpreter :: Show a => Expr a -> Interpreter Val
-runInterpreter = \case
+runInterpreter :: Show a => Expr a -> Interpreter a Val
+runInterpreter expr = case expr of
   Atom (Num _ i) ->
     pure $ Num () i
 
   Atom (Bool _ b) ->
     pure $ Bool () b
 
-  expr@(PrimOp _ op e) -> case op of
+  TypeError te a ->
+    throwTErr te a expr
+
+  PrimOp _ op e -> case op of
     NumOp op' -> case op' of
       Inc ->
         num1 expr (Num () . (+1))
@@ -49,7 +52,7 @@ runInterpreter = \case
           =<< runInterpreter e
 
 
-  expr@(PrimBinOp _ op_ e1 e2) -> case op_ of
+  PrimBinOp _ op_ e1 e2 -> case op_ of
     NumBinOp op' ->
       join $ num2 expr op
         <$> runInterpreter e1
@@ -73,7 +76,8 @@ runInterpreter = \case
       where
         op = case op' of
           And -> (&&)
-          Or -> (||)
+          Or  -> (||)
+          Xor -> xor
 
   Let _ binder bind e -> do
     r <- runInterpreter bind
@@ -82,7 +86,7 @@ runInterpreter = \case
 
   Idn _ name -> lookupM id name
 
-  expr@(If _ test true false) -> do
+  If _ test true false -> do
     r <- runInterpreter test
     bool1M expr r $ \b ->
       runInterpreter $
@@ -91,70 +95,33 @@ runInterpreter = \case
           else false
 
 
+num1 :: Expr a -> (Int32 -> Val) -> Val -> Interpreter a Val
+num1 expr f v = case v of
+  Num _  i -> pure (f i)
+  _ -> throwTErr NotANumber (setAnnAtom (getAnn expr) v) expr
 
-
-num1 :: Show a => Expr a -> (Int32 -> Val) -> Val -> Interpreter Val
-num1 expr f = \case
-  Num _ i ->
-    pure (f i)
-
-  Bool _ b ->
-    throwErr . unlines $
-      [ "Type error. Expecting a number but got the boolean value " ++ show b
-      , "In the expression: "
-      , groom expr
-      ]
-
-num2 :: Show a => Expr a -> (Int32 -> Int32 -> Val) -> Val -> Val -> Interpreter Val
+num2 :: Expr a -> (Int32 -> Int32 -> Val) -> Val -> Val -> Interpreter a Val
 num2 expr f v1 v2 = case v1 of
-  Num _ i ->
-    num1 expr (f i) v2
+  Num _  i -> num1 expr (f i) v2
+  _ -> throwTErr NotANumber (setAnnAtom (getAnn expr) v1) expr
 
-  Bool _ b ->
-    throwErr . unlines $
-      [ "Type error. Expecting a number but got the boolean value " ++ show b
-      , "In the expression: "
-      , groom expr
-      ]
+bool1 :: Expr a -> (Bool -> Bool) -> Val -> Interpreter a Val
+bool1 expr f v = case v of
+  Bool _ b -> pure (Bool () $ f b)
+  _ -> throwTErr NotABool (setAnnAtom (getAnn expr) v) expr
 
-bool1 :: Show a => Expr a -> (Bool -> Bool) -> Val -> Interpreter Val
-bool1 expr f = \case
-  Bool _ b ->
-    pure (Bool () $ f b)
-
-  Num _ i ->
-    throwErr . unlines $
-      [ "Type error. Expecting a boolean value but got the number " ++ show i
-      , "In the expression: "
-      , groom expr
-      ]
-
-bool2 :: Show a => Expr a -> (Bool -> Bool -> Bool) -> Val -> Val -> Interpreter Val
+bool2 :: Expr a -> (Bool -> Bool -> Bool) -> Val -> Val -> Interpreter a Val
 bool2 expr f v1 v2 = case v1 of
-  Bool _ b ->
-    bool1 expr (f b) v2
+  Bool _ b -> bool1 expr (f b) v2
+  _ -> throwTErr NotABool (setAnnAtom (getAnn expr) v1) expr
 
-  Num _ i ->
-    throwErr . unlines $
-      [ "Type error. Expecting a boolean value but got the number " ++ show i
-      , "In the expression: "
-      , groom expr
-      ]
-
-bool1M :: Show a => Expr a -> Val -> (Bool -> Interpreter Val) -> Interpreter Val
+bool1M :: Expr a -> Val -> (Bool -> Interpreter a Val) -> Interpreter a Val
 bool1M expr v f = case v of
-  Bool _ b ->
-    f b
-
-  Num _ i ->
-    throwErr . unlines $
-      [ "Type error. Expecting a boolean value but got the number " ++ show i
-      , "In the expression: "
-      , groom expr
-      ]
+  Bool _ b -> f b
+  _ -> throwTErr NotABool (setAnnAtom (getAnn expr) v) expr
 
 
-int32ToVal :: Int32 -> Either Error Val
+int32ToVal :: Int32 -> Either (Error ann) Val
 int32ToVal i
   | i .&. boolTag /= 0
   , i == trueValue = pure (Bool () True)

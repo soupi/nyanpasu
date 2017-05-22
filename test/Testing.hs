@@ -38,6 +38,6 @@ x @=? y = assertEq (x,y)
 
 
 compareProgram ::
-  (Either Error LLI.Val -> Either Error LLI.Val -> t) -> Expr () -> t
+  (Either (Error ()) LLI.Val -> Either (Error ()) LLI.Val -> t) -> Expr () -> t
 compareProgram cmp e =
   (LLI.int32ToVal =<< X86.interpret e) `cmp` LLI.interpret e

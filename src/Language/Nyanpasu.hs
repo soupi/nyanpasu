@@ -26,7 +26,7 @@ run = do
     Compile -> do
       expr <- readFail =<< getContents
       case X86.compileProgram expr of
-        Left err -> do
+        Left (err :: Error ()) -> do
           hPutStrLn stderr (displayError err)
           exitFailure
         Right rs ->
@@ -44,7 +44,7 @@ run = do
     CompileAndInterpret -> do
       expr <- readFail =<< getContents
       case X86.interpret expr of
-        Left err -> do
+        Left (err :: Error ()) -> do
           hPutStrLn stderr (displayError err)
           exitFailure
         Right ((`shiftR` 1) -> rs) ->

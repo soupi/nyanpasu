@@ -6,6 +6,7 @@
 module Language.Nyanpasu.LL.CodeGenUtils where
 
 import Language.Nyanpasu.LL.ANF
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import qualified Language.Nyanpasu.LL.AST as AST
@@ -30,18 +31,18 @@ initState = CodeGenState [] 1 0
 type Env = [(Name, Address)]
 
 -- | State CodeGenState + Except Error
-type CodeGen a
-  = StateT CodeGenState (Except Error) a
+type CodeGen ann a
+  = StateT CodeGenState (Except (Error ann)) a
 
 -- | Insert a variable into the environment and gen an address for it
-insertVar :: String -> CodeGen Address
+insertVar :: String -> CodeGen ann Address
 insertVar name = do
   CodeGenState env addr namer <- get
   put (CodeGenState ((name, addr) : env) (addr + 1) namer)
   pure addr
 
 -- | Get an address for a fresh variable
-insertNamer :: CodeGen Address
+insertNamer :: CodeGen ann Address
 insertNamer = do
   CodeGenState env addr namer <- get
   put (CodeGenState env addr (namer + 1))
@@ -49,7 +50,7 @@ insertNamer = do
   insertVar name
 
 -- | Pop a variable that is no longer in use
-popVar :: CodeGen ()
+popVar :: CodeGen ann ()
 popVar = do
   CodeGenState env addr namer <- get
   put (CodeGenState (tail env) (addr - 1) namer)
@@ -68,12 +69,12 @@ assignLabels = flip evalState 0 . traverse go
 ------------------------
 
 -- | Use this to run the algorithm
-runExprToANF :: AST.Expr () -> Either Error (Expr Int32)
+runExprToANF :: AST.Expr () -> Either (Error ann) (Expr Int32)
 runExprToANF astExpr = fmap assignLabels . runExcept . flip evalStateT initState $ exprToANF astExpr
 
 -- | Algorithm to convert an `AST.Expr a` to `ANF.Expr a`
 --   We will also assign permanent addresses for each identifier
-exprToANF :: AST.Expr a -> StateT CodeGenState (Except Error) (Expr a)
+exprToANF :: AST.Expr a -> StateT CodeGenState (Except (Error ann)) (Expr a)
 exprToANF = \case
 
   -- Atom is already immediate

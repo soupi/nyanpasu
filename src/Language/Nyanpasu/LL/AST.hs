@@ -5,12 +5,11 @@
 
 module Language.Nyanpasu.LL.AST where
 
-import Language.Nyanpasu.Utils
-
 import Data.Monoid
 import Data.Data
 import GHC.Generics
 import Control.DeepSeq
+import Language.Nyanpasu.Types
 
 -------------------
 -- Functional IR --
@@ -23,6 +22,13 @@ data Atom a
   | Bool a Bool
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
+-- | A data type for errors
+--
+data TypeError
+  = NotANumber
+  | NotABool
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
+
 -- | The Expr type
 --   Represents the low level, yet functional IR
 --
@@ -33,6 +39,7 @@ data Expr a
   | Idn a Name
   | Let a Name (Expr a) (Expr a)
   | If a (Expr a) (Expr a) (Expr a)
+  | TypeError TypeError (Atom a)
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
 
 -- | The PrimOp type
@@ -98,6 +105,7 @@ instance Traversable Atom where
 instance Foldable Expr where
   foldMap f = \case
     Atom a -> foldMap f a
+    TypeError _ a -> foldMap f a
     PrimOp a _ e -> f a <> foldMap f e
     PrimBinOp a _ e1 e2 -> f a <> foldMap f e1 <> foldMap f e2
     Idn a _ -> f a
@@ -107,6 +115,7 @@ instance Foldable Expr where
 instance Traversable Expr where
   traverse f = \case
     Atom a -> Atom <$> traverse f a
+    TypeError te a -> TypeError te <$> traverse f a
     PrimOp a op e -> PrimOp <$> f a <*> pure op <*> traverse f e
     PrimBinOp a op e1 e2 -> PrimBinOp <$> f a <*> pure op <*> traverse f e1 <*> traverse f e2
     Idn a n -> flip Idn n <$> f a
@@ -123,6 +132,7 @@ getAnn :: Expr a -> a
 getAnn = \case
   Atom (Num a _) -> a
   Atom (Bool a _) -> a
+  TypeError _ a -> getAnn (Atom a)
   PrimOp a _ _ -> a
   PrimBinOp a _ _ _ -> a
   Idn a _ -> a
@@ -133,11 +143,23 @@ setAnn :: a -> Expr a -> Expr a
 setAnn ann = \case
   Atom (Num _ e) -> Atom (Num ann e)
   Atom (Bool _ e) -> Atom (Bool ann e)
+  TypeError te (Num _ e) -> TypeError te (Num ann e)
+  TypeError te (Bool _ e) -> TypeError te (Bool ann e)
   PrimOp _ op e -> PrimOp ann op e
   PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2
   Idn _ i -> Idn ann i
   Let _ n b e -> Let ann n b e
   If _ t f' t' -> If ann t f' t'
+
+setAnnAtom :: b -> Atom a -> Atom b
+setAnnAtom newAnn = \case
+  Num  _ n -> Num  newAnn n
+  Bool _ b -> Bool newAnn b
+
+ppAtom :: Atom a -> String
+ppAtom = \case
+  Bool _ b -> show b
+  Num _  n -> show n
 
 -----------------
 -- AST Helpers --
@@ -202,3 +224,9 @@ greater_ = PrimBinOp () (NumBinOp Greater)
 
 greaterEq_ :: Expr () -> Expr () -> Expr ()
 greaterEq_ = PrimBinOp () (NumBinOp GreaterEq)
+
+nan :: Int32 -> Expr ()
+nan = TypeError NotANumber . Num ()
+
+nab :: Bool -> Expr ()
+nab = TypeError NotABool . Bool ()

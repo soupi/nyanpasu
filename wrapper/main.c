@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 extern int my_code() asm("my_code");
 
@@ -17,6 +18,22 @@ int print(int val) {
     printf("Unknown value: %#010x", val);
   }
   return val;
+}
+
+const int ERR_NOT_NUMBER = 1;
+const int ERR_NOT_BOOLEAN = 2;
+// other error codes here
+
+void error(int val, int errCode) {
+  if (errCode == ERR_NOT_NUMBER) {
+    fprintf(stderr, "Expected number, but got %010x\n", val);
+  } else if (errCode == ERR_NOT_BOOLEAN) {
+    fprintf(stderr, "Expected boolean, but got %010x\n", val);
+  } else {
+    fprintf(stderr, "Unexpected error code %d for value %010x\n", errCode, val);
+  }
+
+  exit(errCode);
 }
 
 int main(int argc, char** argv) {

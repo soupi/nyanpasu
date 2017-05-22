@@ -3,9 +3,9 @@ module Interpreter where
 
 import Testing
 import Control.Monad
-import Data.Bits
+-- import Data.Bits
 
-import Language.Nyanpasu.Utils
+-- import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST
 import qualified Language.Nyanpasu.LL.Interpreter as LLI
@@ -19,7 +19,7 @@ tests =
       , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (LLI.int32ToVal <=< X86.interpret))
       ]
 
-inter :: (Expr () -> Either Error LLI.Val) -> [Assertion]
+inter :: (Expr () -> Either (Error ()) LLI.Val) -> [Assertion]
 inter interpret =
   [ interpret (num_ 5) @=?
       Right (Num () 5)

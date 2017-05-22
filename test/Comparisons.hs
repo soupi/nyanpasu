@@ -3,7 +3,7 @@ module Comparisons where
 import Testing
 
 import Data.Bits
-import Language.Nyanpasu.Utils
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.LL.AST
 
 tests :: TestTree

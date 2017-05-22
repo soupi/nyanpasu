@@ -10,10 +10,11 @@ import Data.Maybe
 import Control.Monad.Except
 import qualified Data.Map as M
 
+import Language.Nyanpasu.Types
+import Language.Nyanpasu.Utils
+import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST (Expr)
 import Language.Nyanpasu.Assembly.X86.CodeGen
-import Language.Nyanpasu.Error
-import Language.Nyanpasu.Utils
 
 
 -- | Representation of the machine state
@@ -38,10 +39,10 @@ type Instructions
 --
 --   May fail if a label is redefined
 --
-mkInstructions :: [Instruction] -> Either Error Instructions
+mkInstructions :: [Instruction] -> Either (Error ann) Instructions
 mkInstructions = go M.empty ("start", -1) []
   where
-    go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either Error Instructions
+    go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
     go insts lbl lblInsts = \case
       [] -> pure $ M.insert lbl (reverse lblInsts) insts
 
@@ -59,11 +60,11 @@ initMachine :: Machine
 initMachine = Machine M.empty M.empty False
 
 -- | Compile and interpret an AST.Expr
-interpret :: Expr () -> Either Error Int32
+interpret :: Expr () -> Either (Error ann) Int32
 interpret = runInterpreter <=< compileExprRaw
 
 -- | Execute instructions
-runInterpreter :: [Instruction] -> Either Error Int32
+runInterpreter :: [Instruction] -> Either (Error ann) Int32
 runInterpreter instructions = do
   insts <- mkInstructions instructions
   lookupErr EAX . regs =<<
@@ -71,7 +72,7 @@ runInterpreter instructions = do
      lookupErr ("start", -1) insts
 
 -- | One step of instructions
-interpreterStep :: Machine -> Instructions -> [Instruction] -> Either Error Machine
+interpreterStep :: Machine -> Instructions -> [Instruction] -> Either (Error ann) Machine
 interpreterStep m insts = \case
   [] -> pure m
   inst : next -> do
@@ -128,7 +129,7 @@ interpreterStep m insts = \case
         newMachine <- toSrc dest
         interpreterStep newMachine insts next
 
-getSrcF :: MonadError Error m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
+getSrcF :: MonadError (Error ann) m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
 getSrcF f m = \case
   Reg r -> do
     rv <- getDest m (Reg r)
@@ -145,7 +146,7 @@ getSrcF f m = \case
   x ->
     throwErr $ "No supported: " ++ show x
 
-getDest :: MonadError Error m => Machine -> Arg -> m Int32
+getDest :: MonadError (Error ann) m => Machine -> Arg -> m Int32
 getDest m = \case
   Reg r ->
     pure . fromMaybe 0 $ M.lookup r (regs m)

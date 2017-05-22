@@ -5,7 +5,7 @@
 
 module Language.Nyanpasu.Assembly.X86.CodeGen where
 
-import Language.Nyanpasu.Utils
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.ANF
 import Language.Nyanpasu.LL.CodeGenUtils
@@ -80,7 +80,7 @@ instance Show Assembly where
 ---------------------
 
 -- | Compile an expression and output an assembly string
-compileProgram :: AST.Expr () -> Either Error Assembly
+compileProgram :: AST.Expr () -> Either (Error ann) Assembly
 compileProgram expr = do
     asmStr <- ppAsm <$> compileExprRaw expr
     pure $ Assembly $
@@ -100,7 +100,7 @@ compileProgram expr = do
       suffix = "ret"
 
 -- | Compile an expression and output a assembly list of instructions
-compileExprRaw :: AST.Expr () -> Either Error [Instruction]
+compileExprRaw :: AST.Expr () -> Either (Error ann) [Instruction]
 compileExprRaw expr = do
   e <- {- (\e -> trace (groom e) e) <$> -}
     runExprToANF expr
@@ -108,7 +108,7 @@ compileExprRaw expr = do
     compileExpr e
 
 -- | Compile an expression to a list of instructions
-compileExpr :: Expr Int32 -> CodeGen [Instruction]
+compileExpr :: Expr Int32 -> CodeGen ann [Instruction]
 compileExpr = \case
   Atom atom -> case atom of
     Idn _ addr -> do
@@ -161,7 +161,7 @@ compileExpr = \case
      ]
 
 -- | Compile an immediate value to an x86 argument
-compileAtom :: Atom a -> CodeGen Arg
+compileAtom :: Atom a -> CodeGen ann Arg
 compileAtom = \case
   Num _ i
     | i > 1073741823 || i < -1073741824 ->

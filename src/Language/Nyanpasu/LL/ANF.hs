@@ -37,7 +37,7 @@ import Language.Nyanpasu.LL.AST as Export
   , BoolBinOp(..)
   )
 
-import Language.Nyanpasu.Utils
+import Language.Nyanpasu.Types
 
 import Data.Monoid
 import Data.Data
