@@ -44,6 +44,7 @@ unit f =
 comps :: [(String, Expr () -> Expr () -> Expr ())]
 comps =
   [ ("eq",        eq_)
+  , ("notEq",     notEq_)
   , ("less",      less_)
   , ("greater",   greater_)
   , ("lessEq",    lessEq_)

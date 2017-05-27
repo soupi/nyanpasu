@@ -33,9 +33,6 @@ runInterpreter expr = case expr of
   Atom (Bool _ b) ->
     pure $ Bool () b
 
-  TypeError te a ->
-    throwTErr te a expr
-
   PrimOp _ op e -> case op of
     NumOp op' -> case op' of
       Inc ->

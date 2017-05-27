@@ -1,7 +1,7 @@
 {- | Code generation for X86
 -}
 
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable, NegativeLiterals #-}
 
 module Language.Nyanpasu.Assembly.X86.CodeGen where
 
@@ -121,9 +121,8 @@ compileExpr = \case
   PrimOp _ op a -> do
     im <- compileAtom a
     pure $
-      [ IMov (Reg EAX) im
-      , compileOp op (Reg EAX)
-      ]
+        IMov (Reg EAX) im
+      : compileOp op
 
   PrimBinOp _ op a1 a2 -> do
     im1 <- compileAtom a1
@@ -175,15 +174,15 @@ compileAtom = \case
   Idn _ addr ->
     pure $ RegOffset ESP addr
 
--- | Compile a PrimOp and Arg to an x86 Instruction
-compileOp :: PrimOp -> Arg -> Instruction
-compileOp op_ arg = case op_ of
+-- | Compile a PrimOp to an x86 [Instruction]
+compileOp :: PrimOp -> [Instruction]
+compileOp = \case
   NumOp op -> case op of
-    Inc -> IAdd arg (Const $ shiftL 1 1)
-    Dec -> ISub arg (Const $ shiftL 1 1)
+    Inc -> [IAdd (Reg EAX) (Const $ shiftL 1 1)]
+    Dec -> [ISub (Reg EAX) (Const $ shiftL 1 1)]
 
   BoolOp op -> case op of
-    Not -> IXor arg (Const boolTag)
+    Not -> [IXor (Reg EAX) (Const trueTag)]
 
 -- | Compile a PrimBinOp and two Args,
 --   where the first is in EAX and the other is passed to the function,
@@ -224,6 +223,10 @@ compileBinOp op_ arg2 = case op_ of
       , IXor (Reg EAX) (Const trueValue)
       , IOr  (Reg EAX) (Const boolTag)
       ]
+
+    NotEq ->
+      compileBinOp (NumBinOp Eq) arg2
+      ++ compileOp (BoolOp Not)
 
     Greater ->
       [ ISar (Reg EAX) (Const 1)
@@ -341,3 +344,6 @@ trueValue = -2147483647
 
 falseValue :: Int32
 falseValue = 0x1
+
+trueTag :: Int32
+trueTag = -2147483648
