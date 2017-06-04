@@ -46,7 +46,12 @@ data Instruction
   | ISal Arg Arg
   | IJmp  Label
   | IJe   Label
+  | IJnz  Label
   | Label Label
+  | ICall  Label
+  | IRet
+  | IPush Arg
+  | IPop  Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 type Label = (String, Int32)
@@ -57,6 +62,7 @@ data Arg
   = Const Int32
   | Reg Reg
   | RegOffset Reg Int32
+  | RawArg String
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 -- | The Reg type
@@ -65,7 +71,9 @@ data Reg
   = EAX
   | EBX
   | ECX
+  | EDX
   | ESP
+  | EBP
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 -- | Output
@@ -82,37 +90,52 @@ instance Show Assembly where
 -- | Compile an expression and output an assembly string
 compileProgram :: AST.Expr () -> Either (Error ann) Assembly
 compileProgram expr = do
-    asmStr <- ppAsm <$> compileExprRaw expr
-    pure $ Assembly $
+  asmStr <- ppAsm <$> compileExprRaw expr
+  pure $ Assembly $
+    unlines
+      [ prelude
+      , asmStr
+      , errors
+      , suffix
+      ]
+
+  where
+    prelude =
       unlines
-        [ prelude
-        , asmStr
-        , suffix
+        [ "section .text"
+        , "global my_code"
+        , "my_code:"
         ]
 
-    where
-      prelude =
-        unlines
-          [ "section .text"
-          , "global my_code"
-          , "my_code:"
-          ]
-      suffix = "ret"
+    suffix =
+      unlines
+        [ "end:"
+        , "ret"
+        ]
+
+    errors =
+      unlines
+        [ "jmp end"
+        , "error_not_number:"
+        , "jmp end"
+        , "error_not_bool:"
+        , "jmp end"
+        ]
 
 -- | Compile an expression and output a assembly list of instructions
 compileExprRaw :: AST.Expr () -> Either (Error ann) [Instruction]
 compileExprRaw expr = do
-  e <- {- (\e -> trace (groom e) e) <$> -}
-    runExprToANF expr
-  runExcept . flip evalStateT initState $ do
-    compileExpr e
+  e <- runExprToANF expr
+  insts <- runExcept . flip evalStateT initState $ compileExpr e
+  pure (withStackFrame e insts)
+
 
 -- | Compile an expression to a list of instructions
 compileExpr :: Expr Int32 -> CodeGen ann [Instruction]
 compileExpr = \case
   Atom atom -> case atom of
     Idn _ addr -> do
-      pure [ IMov (Reg EAX) (RegOffset ESP addr) ]
+      pure [ IMov (Reg EAX) (RegOffset EBP addr) ]
 
     _ -> do
       res <- compileAtom atom
@@ -135,7 +158,7 @@ compileExpr = \case
   Let _ addr binder body -> do
     asm <- concat <$> sequence
       [ compileExpr binder
-      , pure [ IMov (RegOffset ESP addr) (Reg EAX) ]
+      , pure [ IMov (RegOffset EBP addr) (Reg EAX) ]
       , compileExpr body
       ]
     popVar
@@ -172,17 +195,21 @@ compileAtom = \case
     pure $ Const $ bool falseValue trueValue b
 
   Idn _ addr ->
-    pure $ RegOffset ESP addr
+    pure $ RegOffset EBP addr
 
 -- | Compile a PrimOp to an x86 [Instruction]
 compileOp :: PrimOp -> [Instruction]
 compileOp = \case
-  NumOp op -> case op of
-    Inc -> [IAdd (Reg EAX) (Const $ shiftL 1 1)]
-    Dec -> [ISub (Reg EAX) (Const $ shiftL 1 1)]
+  NumOp op ->
+    checkNum (Reg EAX) ++
+    case op of
+      Inc -> [IAdd (Reg EAX) (Const $ shiftL 1 1)]
+      Dec -> [ISub (Reg EAX) (Const $ shiftL 1 1)]
 
-  BoolOp op -> case op of
-    Not -> [IXor (Reg EAX) (Const trueTag)]
+  BoolOp op ->
+    checkBool (Reg EAX) ++
+    case op of
+      Not -> [IXor (Reg EAX) (Const trueTag)]
 
 -- | Compile a PrimBinOp and two Args,
 --   where the first is in EAX and the other is passed to the function,
@@ -192,7 +219,7 @@ compileOp = \case
 --
 compileBinOp :: PrimBinOp -> Arg -> [Instruction]
 compileBinOp op_ arg2 = case op_ of
-  NumBinOp op -> case op of
+  NumBinOp op -> checkNum (Reg EAX) ++ checkNum arg2 ++ case op of
     Add -> [ IAdd (Reg EAX) arg2 ]
     Sub ->
       [ ISub (Reg EAX) arg2
@@ -250,7 +277,7 @@ compileBinOp op_ arg2 = case op_ of
       , IOr  (Reg EAX) (Const boolTag)
       ]
 
-  BoolBinOp op -> case op of
+  BoolBinOp op -> checkBool (Reg EAX) ++ checkBool arg2 ++ case op of
     And ->
       [ IAnd (Reg EAX) arg2
       ]
@@ -263,6 +290,23 @@ compileBinOp op_ arg2 = case op_ of
       [ IXor (Reg EAX) arg2
       , IOr  (Reg EAX) (Const boolTag)
       ]
+
+allocateStackFrame :: Expr Int32 -> [Instruction]
+allocateStackFrame expr =
+  [ IPush (Reg EBP)
+  , IMov (Reg EBP) (Reg ESP)
+  , ISub (Reg ESP) (RawArg $ "4*" <> show (countVars expr))
+  ]
+
+deallocateStackFrame :: [Instruction]
+deallocateStackFrame =
+  [ IMov (Reg ESP) (Reg EBP)
+  , IPop (Reg EBP)
+  , IRet
+  ]
+
+withStackFrame :: Expr Int32 -> [Instruction] -> [Instruction]
+withStackFrame expr insts = allocateStackFrame expr ++ insts ++ deallocateStackFrame
 
 ------------------------
 -- To Assembly String --
@@ -303,8 +347,18 @@ ppInstruction = \case
     "jmp " <> ppLabel lbl
   IJe  lbl ->
     "je " <> ppLabel lbl
+  IJnz lbl ->
+    "jnz " <> ppLabel lbl
   Label lbl ->
     ppLabel lbl <> ":"
+  IRet ->
+    "ret"
+  ICall lbl ->
+    "call " <> ppLabel lbl
+  IPush arg ->
+    "push " <> ppArg arg
+  IPop arg ->
+    "pop " <> ppArg arg
 
 -- | Pretty print a label
 ppLabel :: Label -> String
@@ -327,10 +381,27 @@ ppArg = \case
   Reg r   -> ppReg r
   RegOffset reg addr ->
     "[" <> ppReg reg <> " - 4*" <> show addr <> "]"
+  RawArg str -> str
 
 -- | Pretty print a register
 ppReg :: Reg -> String
 ppReg = map toLower . show
+
+------------
+-- Errors --
+------------
+
+checkNum :: Arg -> [Instruction]
+checkNum arg = []
+--  [ IMov arg (Const -1)
+--  , IJmp ("end", -1)
+--  ]
+
+checkBool :: Arg -> [Instruction]
+checkBool arg = []
+--  [ IMov arg (Const -2)
+--  , IJmp ("end", -1)
+--  ]
 
 ---------------
 -- Constants --

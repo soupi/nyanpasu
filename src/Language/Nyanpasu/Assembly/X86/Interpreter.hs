@@ -14,6 +14,7 @@ import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST (Expr)
+import Language.Nyanpasu.LL.CodeGenUtils
 import Language.Nyanpasu.Assembly.X86.CodeGen
 
 
@@ -35,12 +36,27 @@ type Instructions
   = M.Map Label [Instruction]
 
 
+-- | Initial Instructions
+
+initInsts :: Instructions
+initInsts = M.fromList
+  [ ( ("end", -1)
+    , [IRet]
+    )
+  , ( ("error_not_bool",-1)
+    , [IRet]
+    )
+  , ( ("error_not_number",-1)
+    , [IRet]
+    )
+  ]
+
 -- | Create an instructions tree from a list of Instructions
 --
 --   May fail if a label is redefined
 --
 mkInstructions :: [Instruction] -> Either (Error ann) Instructions
-mkInstructions = go M.empty ("start", -1) []
+mkInstructions = go initInsts ("start", -1) []
   where
     go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
     go insts lbl lblInsts = \case
@@ -121,6 +137,16 @@ interpreterStep m insts = \case
               lookupErr lbl insts
             else
               pure next
+
+      IJnz lbl ->
+        interpreterStep m insts =<<
+          if zf m
+            then
+              pure next
+            else
+              lookupErr lbl insts
+
+      IRet -> pure m
 
     where
       binModSrc f a1 a2 = do

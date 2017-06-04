@@ -15,6 +15,9 @@ import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
 
+import Data.Generics.Uniplate.Data
+import Data.Data (Data)
+
 -- | State for code generation
 --
 data CodeGenState = CodeGenState
@@ -150,4 +153,15 @@ exprToANF = \case
     pure $
       let1 $ let2 $
         PrimBinOp a op idn1 idn2
+
+
+
+---------
+-- ANF --
+---------
+
+
+countVars :: Data a => Expr a -> Address
+countVars expr = maximum $
+  [ addr | Let _ addr _ _ <- universe expr ]
 
