@@ -5,22 +5,24 @@
 
 module Language.Nyanpasu.Assembly.X86.Interpreter where
 
+import Data.Monoid
 import Data.Bits
 import Data.Maybe
 import Control.Monad.Except
 import qualified Data.Map as M
+import qualified Data.Vector as V
 
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST (Expr)
-import Language.Nyanpasu.LL.CodeGenUtils
 import Language.Nyanpasu.Assembly.X86.CodeGen
 
+import Text.Groom
 
 -- | Representation of the machine state
 data Machine = Machine
-  { stack :: M.Map Int32 Int32
+  { stack :: V.Vector Int32
   , regs :: M.Map Reg Int32
   , zf :: Bool
   }
@@ -56,7 +58,7 @@ initInsts = M.fromList
 --   May fail if a label is redefined
 --
 mkInstructions :: [Instruction] -> Either (Error ann) Instructions
-mkInstructions = go initInsts ("start", -1) []
+mkInstructions = go initInsts ("start", -1) [] . rewrites
   where
     go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
     go insts lbl lblInsts = \case
@@ -72,8 +74,26 @@ mkInstructions = go initInsts ("start", -1) []
       inst : rest ->
         go insts lbl (inst : lblInsts) rest
 
+rewrites :: [Instruction] -> [Instruction]
+rewrites = concatMap $ \case
+  IPush arg ->
+    [ IMov (RegOffset ESP 0) arg
+    , ISub (Reg ESP) (Const 1)
+    ]
+
+  IPop arg ->
+    [ IMov arg (RegOffset ESP 0)
+    , IAdd (Reg ESP) (Const 1)
+    ]
+
+  ICall lbl ->
+    [ 
+    ]
+
+  i -> [ i ]
+
 initMachine :: Machine
-initMachine = Machine M.empty M.empty False
+initMachine = Machine (V.replicate 1000 0) (M.fromList [(ESP, 900)]) False
 
 -- | Compile and interpret an AST.Expr
 interpret :: Expr () -> Either (Error ann) Int32
@@ -122,8 +142,8 @@ interpreterStep m insts = \case
           a2
 
       ICmp a1 a2 -> do
-        a1' <- getDest m a1
-        a2' <- getDest m a2
+        a1' <- getSrc m a1
+        a2' <- getSrc m a2
         interpreterStep (m { zf = a1' == a2' }) insts next
 
       IJmp lbl ->
@@ -148,40 +168,49 @@ interpreterStep m insts = \case
 
       IRet -> pure m
 
+      _ -> throwErr $ "Unexpected instruction: " <> groom inst
+
     where
       binModSrc f a1 a2 = do
-        toSrc <- getSrcF f m a1
-        dest  <- getDest m a2
-        newMachine <- toSrc dest
+        toDest <- modifyDest f m a1
+        src    <- getSrc m a2
+        newMachine <- toDest src
         interpreterStep newMachine insts next
 
-getSrcF :: MonadError (Error ann) m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
-getSrcF f m = \case
+modifyDest :: MonadError (Error ann) m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
+modifyDest f m = \case
   Reg r -> do
-    rv <- getDest m (Reg r)
+    rv <- getSrc m (Reg r)
     pure $ \i -> do
       result <- f rv i
       pure $ m { regs = M.insert r result (regs m) }
 
-  RegOffset ESP n -> do
-    rv <- getDest m (RegOffset ESP n) `catchError` \_ -> pure 0
+  RegOffset reg n -> do
+    regVal <- getSrc m (Reg reg) `catchError` \_ -> pure 0
+    regOffsetVal <- getSrc m (RegOffset reg n) `catchError` \_ -> pure 0
     pure $ \i -> do
-      result <- f rv i
-      pure $ m { stack = M.insert n result (stack m) }
+      result <- f regOffsetVal i
+      let index = fromIntegral (regVal - n)
+      pure $ m { stack = stack m V.// [(index, result)] }
 
   x ->
-    throwErr $ "No supported: " ++ show x
+    throwErr $ "getSrcF: Not supported: " ++ show x
 
-getDest :: MonadError (Error ann) m => Machine -> Arg -> m Int32
-getDest m = \case
+getSrc :: MonadError (Error ann) m => Machine -> Arg -> m Int32
+getSrc m = \case
   Reg r ->
     pure . fromMaybe 0 $ M.lookup r (regs m)
 
-  RegOffset ESP n ->
-    lookupErr n (stack m)
+  RegOffset reg n -> do
+    let rv = fromMaybe 0 $ M.lookup reg (regs m)
+    let index = fromIntegral (rv - n)
+    pure $ (stack m V.! index)
 
   Const n ->
     pure n
 
+  ArgTimes _ arg ->
+    getSrc m arg
+
   x ->
-    throwErr $ "No supported: " ++ show x
+    throwErr $ "getDest: Not supported: " ++ show x

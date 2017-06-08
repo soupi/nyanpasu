@@ -8,6 +8,9 @@ import Data.Monoid
 import Data.Typeable (Typeable, typeOf)
 import Text.Read (readMaybe)
 
+import Debug.Trace (trace)
+import Text.Groom (groom)
+
 import Language.Nyanpasu.Error
 
 lookupM :: (MonadError (Error ann) m, MonadState s m) => (s -> M.Map String v) -> String -> m v
@@ -60,3 +63,6 @@ readFail str =
 
 infixr 9 .*
 
+-- | trace with label
+traceL :: Show a => String -> a -> a
+traceL s x = trace (s ++ ": " ++ groom x) x

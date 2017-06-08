@@ -6,6 +6,9 @@
 module Language.Nyanpasu
   ( module Export
   , run
+  , compileX86
+  , interpretX86
+  , interpreter
   , samples
   )
 where
@@ -24,31 +27,13 @@ run :: IO ()
 run = do
   parseArgs >>= \case
     Compile -> do
-      expr <- readFail =<< getContents
-      case X86.compileProgram expr of
-        Left (err :: Error ()) -> do
-          hPutStrLn stderr (displayError err)
-          exitFailure
-        Right rs ->
-          print rs
+      compileX86 =<< readFail =<< getContents
 
     Interpret -> do
-      expr <- readFail @(Expr ()) =<< getContents
-      case interpret expr of
-        Left err -> do
-          hPutStrLn stderr (displayError err)
-          exitFailure
-        Right rs ->
-          putStrLn (show rs)
+      interpreter =<< readFail @(Expr ()) =<< getContents
 
     CompileAndInterpret -> do
-      expr <- readFail =<< getContents
-      case X86.interpret expr of
-        Left (err :: Error ()) -> do
-          hPutStrLn stderr (displayError err)
-          exitFailure
-        Right ((`shiftR` 1) -> rs) ->
-          print rs
+      interpretX86 =<< readFail =<< getContents
 
     Samples esc ->
       putStrLn $ unlines $ map (escape esc . show) samples
@@ -65,6 +50,33 @@ run = do
               gohard = \case
                 '"' -> [ '\\', '\\', '\\', '"' ]
                 x   -> [ x ]
+
+compileX86 :: Expr () -> IO ()
+compileX86 expr =
+  case X86.compileProgram expr of
+    Left (err :: Error ()) -> do
+      hPutStrLn stderr (displayError err)
+      exitFailure
+    Right rs ->
+      print rs
+
+interpreter :: Show ann => Expr ann -> IO ()
+interpreter expr =
+  case interpret expr of
+    Left err -> do
+      hPutStrLn stderr (displayError err)
+      exitFailure
+    Right rs ->
+      putStrLn (show rs)
+
+interpretX86 :: Expr () -> IO ()
+interpretX86 expr =
+  case X86.interpret expr of
+    Left (err :: Error ()) -> do
+      hPutStrLn stderr (displayError err)
+      exitFailure
+    Right ((`shiftR` 1) -> rs) ->
+      print rs
 
 samples :: [Expr ()]
 samples =

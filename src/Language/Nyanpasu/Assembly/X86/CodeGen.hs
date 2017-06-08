@@ -48,7 +48,7 @@ data Instruction
   | IJe   Label
   | IJnz  Label
   | Label Label
-  | ICall  Label
+  | ICall Label
   | IRet
   | IPush Arg
   | IPop  Arg
@@ -62,7 +62,7 @@ data Arg
   = Const Int32
   | Reg Reg
   | RegOffset Reg Int32
-  | RawArg String
+  | ArgTimes Int32 Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 -- | The Reg type
@@ -295,7 +295,7 @@ allocateStackFrame :: Expr Int32 -> [Instruction]
 allocateStackFrame expr =
   [ IPush (Reg EBP)
   , IMov (Reg EBP) (Reg ESP)
-  , ISub (Reg ESP) (RawArg $ "4*" <> show (countVars expr))
+  , ISub (Reg ESP) (ArgTimes 4 (Const $ countVars expr))
   ]
 
 deallocateStackFrame :: [Instruction]
@@ -381,7 +381,9 @@ ppArg = \case
   Reg r   -> ppReg r
   RegOffset reg addr ->
     "[" <> ppReg reg <> " - 4*" <> show addr <> "]"
-  RawArg str -> str
+  ArgTimes n arg ->
+    show n <> "*" <> ppArg arg
+
 
 -- | Pretty print a register
 ppReg :: Reg -> String
