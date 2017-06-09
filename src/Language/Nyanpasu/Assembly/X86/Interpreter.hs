@@ -9,6 +9,7 @@ import Data.Monoid
 import Data.Bits
 import Data.Maybe
 import Control.Monad.Except
+import Control.Monad.State
 import qualified Data.Map as M
 import qualified Data.Vector as V
 
@@ -51,14 +52,22 @@ initInsts = M.fromList
   , ( ("error_not_number",-1)
     , [IRet]
     )
+  , ( ("call", -1)
+    , []
+    )
   ]
+
+-- | Initial machine state
+initMachine :: Machine
+initMachine = Machine (V.replicate 1000 0 V.// [(901, -1)]) (M.fromList [(ESP, 900)]) False
+
 
 -- | Create an instructions tree from a list of Instructions
 --
 --   May fail if a label is redefined
 --
 mkInstructions :: [Instruction] -> Either (Error ann) Instructions
-mkInstructions = go initInsts ("start", -1) [] . rewrites
+mkInstructions insts0 = go initInsts ("start", -1) [] $ evalState (rewrites insts0) (biggestLabel insts0)
   where
     go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
     go insts lbl lblInsts = \case
@@ -74,26 +83,39 @@ mkInstructions = go initInsts ("start", -1) [] . rewrites
       inst : rest ->
         go insts lbl (inst : lblInsts) rest
 
-rewrites :: [Instruction] -> [Instruction]
-rewrites = concatMap $ \case
-  IPush arg ->
+biggestLabel :: [Instruction] -> Int32
+biggestLabel insts = (maximum . (0 :)) . flip map insts $ \case
+  Label (_, i) -> i
+  _ -> 0
+
+-- | rewrite some assembly instructions to simpler instructions
+rewrites :: [Instruction] -> State Int32 [Instruction]
+rewrites = fmap (fmap concat) . mapM $ \case
+  IPush arg -> pure
     [ IMov (RegOffset ESP 0) arg
     , ISub (Reg ESP) (Const 1)
     ]
 
-  IPop arg ->
-    [ IMov arg (RegOffset ESP 0)
-    , IAdd (Reg ESP) (Const 1)
+  IPop arg -> pure
+    [ IAdd (Reg ESP) (Const 1)
+    , IMov arg (RegOffset ESP 0)
     ]
 
-  ICall lbl ->
-    [ 
-    ]
+  ICall lbl -> do
+    i <- newLabel
+    rewrites
+      [ IPush (Const i)
+      , Label ("call", i)
+      , IJmp lbl
+      ]
 
-  i -> [ i ]
+  i -> pure [ i ]
 
-initMachine :: Machine
-initMachine = Machine (V.replicate 1000 0) (M.fromList [(ESP, 900)]) False
+  where
+    newLabel = do
+      i <- get
+      put (i + 1)
+      pure i
 
 -- | Compile and interpret an AST.Expr
 interpret :: Expr () -> Either (Error ann) Int32
@@ -166,7 +188,11 @@ interpreterStep m insts = \case
             else
               lookupErr lbl insts
 
-      IRet -> pure m
+      IRet -> do
+        rv <- maybe (throwErr "Could not find variable ESP") (pure . (+1)) $ M.lookup ESP (regs m)
+        let retAddr = (stack m V.! fromIntegral rv)
+        let m' = m { regs = M.insert ESP rv (regs m) }
+        interpreterStep m' insts (IJmp ("call", retAddr) : next)
 
       _ -> throwErr $ "Unexpected instruction: " <> groom inst
 

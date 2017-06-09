@@ -118,6 +118,7 @@ compileProgram expr = do
         [ "jmp end"
         , "error_not_number:"
         , "jmp end"
+        , ""
         , "error_not_bool:"
         , "jmp end"
         ]
