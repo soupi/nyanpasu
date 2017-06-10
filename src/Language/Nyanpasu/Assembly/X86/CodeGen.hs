@@ -107,6 +107,7 @@ compileProgram expr = do
       unlines
         [ "section .text"
         , "global my_code"
+        , "extern error"
         , "my_code:"
         ]
 

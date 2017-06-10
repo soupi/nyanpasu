@@ -28,7 +28,7 @@ data CodeGenState = CodeGenState
   deriving (Show, Read, Eq, Ord)
 
 initState :: CodeGenState
-initState = CodeGenState [] 0 0
+initState = CodeGenState [] 1 0
 
 -- | Env is a list so it can be used as a stack as well
 type Env = [(Name, Address)]

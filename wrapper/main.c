@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern int my_code() asm("my_code");
+extern int  my_code() asm("my_code");
+extern void error()   asm("error");
 
 const int BOOL_TAG   = 0x00000001;
 const int BOOL_TRUE  = 0x80000001;
@@ -26,11 +27,11 @@ const int ERR_NOT_BOOLEAN = 2;
 
 void error(int errCode, int val) {
   if (errCode == ERR_NOT_NUMBER) {
-    fprintf(stderr, "Expected number, but got %010x\n", val);
+    fprintf(stderr, "*** Type Error: Expected number, but got %010x\n", val);
   } else if (errCode == ERR_NOT_BOOLEAN) {
-    fprintf(stderr, "Expected boolean, but got %010x\n", val);
+    fprintf(stderr, "*** Type Error: Expected boolean, but got %010x\n", val);
   } else {
-    fprintf(stderr, "Unexpected error code %d for value %010x\n", errCode, val);
+    fprintf(stderr, "*** Error: Unexpected error code %d for value %010x\n", errCode, val);
   }
 
   exit(errCode);
