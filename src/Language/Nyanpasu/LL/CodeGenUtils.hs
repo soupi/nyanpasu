@@ -28,7 +28,7 @@ data CodeGenState = CodeGenState
   deriving (Show, Read, Eq, Ord)
 
 initState :: CodeGenState
-initState = CodeGenState [] 1 0
+initState = CodeGenState [] 0 0
 
 -- | Env is a list so it can be used as a stack as well
 type Env = [(Name, Address)]
@@ -162,6 +162,6 @@ exprToANF = \case
 
 
 countVars :: Data a => Expr a -> Address
-countVars expr = maximum $
+countVars expr = (+1) . maximum . (0:) $
   [ addr | Let _ addr _ _ <- universe expr ]
 

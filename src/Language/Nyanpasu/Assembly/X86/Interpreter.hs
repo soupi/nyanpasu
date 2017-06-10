@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {- | An interpreter for x86
 -}
 
@@ -17,6 +18,7 @@ import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST (Expr)
+import Language.Nyanpasu.LL.Interpreter (int32ToVal)
 import Language.Nyanpasu.Assembly.X86.CodeGen
 
 import Text.Groom
@@ -38,21 +40,24 @@ data Machine = Machine
 type Instructions
   = M.Map Label [Instruction]
 
-
 -- | Initial Instructions
 
 initInsts :: Instructions
 initInsts = M.fromList
-  [ ( ("end", -1)
+  [ ( ("end", Nothing)
     , [IRet]
     )
-  , ( ("error_not_bool",-1)
-    , [IRet]
+  , ( ("error_not_bool", Nothing)
+    , [ IPush (Const 2)
+      , ICall ("error", Nothing)
+      ]
     )
-  , ( ("error_not_number",-1)
-    , [IRet]
+  , ( ("error_not_number", Nothing)
+    , [ IPush (Const 1)
+      , ICall ("error", Nothing)
+      ]
     )
-  , ( ("call", -1)
+  , ( ("call", defLabelId)
     , []
     )
   ]
@@ -67,7 +72,7 @@ initMachine = Machine (V.replicate 1000 0 V.// [(901, -1)]) (M.fromList [(ESP, 9
 --   May fail if a label is redefined
 --
 mkInstructions :: [Instruction] -> Either (Error ann) Instructions
-mkInstructions insts0 = go initInsts ("start", -1) [] $ evalState (rewrites insts0) (biggestLabel insts0)
+mkInstructions = go (fmap rewrites initInsts) ("start", Nothing) [] . rewrites
   where
     go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
     go insts lbl lblInsts = \case
@@ -85,37 +90,41 @@ mkInstructions insts0 = go initInsts ("start", -1) [] $ evalState (rewrites inst
 
 biggestLabel :: [Instruction] -> Int32
 biggestLabel insts = (maximum . (0 :)) . flip map insts $ \case
-  Label (_, i) -> i
+  Label (_, Just i) -> i
   _ -> 0
 
 -- | rewrite some assembly instructions to simpler instructions
-rewrites :: [Instruction] -> State Int32 [Instruction]
-rewrites = fmap (fmap concat) . mapM $ \case
-  IPush arg -> pure
-    [ IMov (RegOffset ESP 0) arg
-    , ISub (Reg ESP) (Const 1)
-    ]
-
-  IPop arg -> pure
-    [ IAdd (Reg ESP) (Const 1)
-    , IMov arg (RegOffset ESP 0)
-    ]
-
-  ICall lbl -> do
-    i <- newLabel
-    rewrites
-      [ IPush (Const i)
-      , Label ("call", i)
-      , IJmp lbl
-      ]
-
-  i -> pure [ i ]
-
+rewrites :: [Instruction] -> [Instruction]
+rewrites insts = evalState (go insts) (biggestLabel insts :: Int32)
   where
-    newLabel = do
-      i <- get
-      put (i + 1)
-      pure i
+    go = fmap (fmap concat) . mapM $ \case
+      IPush arg -> pure
+        [ IMov (RegOffset ESP 0) arg
+        , ISub (Reg ESP) (Const 1)
+        ]
+
+      IPop arg -> pure
+        [ IAdd (Reg ESP) (Const 1)
+        , IMov arg (RegOffset ESP 0)
+        ]
+
+      ICall lbl | lbl /= ("error", Nothing) -> do
+        i <- newLabel
+        go
+          [ IPush (Const i)
+          , Label ("call", Just i)
+          , IJmp lbl
+          ]
+
+      EmptyInst -> pure []
+
+      i -> pure [ i ]
+
+      where
+        newLabel = do
+          i <- get
+          put (i + 1)
+          pure i
 
 -- | Compile and interpret an AST.Expr
 interpret :: Expr () -> Either (Error ann) Int32
@@ -127,13 +136,14 @@ runInterpreter instructions = do
   insts <- mkInstructions instructions
   lookupErr EAX . regs =<<
    interpreterStep initMachine insts =<<
-     lookupErr ("start", -1) insts
+     lookupErr ("start", Nothing) insts
 
 -- | One step of instructions
 interpreterStep :: Machine -> Instructions -> [Instruction] -> Either (Error ann) Machine
 interpreterStep m insts = \case
   [] -> pure m
   inst : next -> do
+    -- case snd $ traceL "regs,inst" (regs m, inst) of
     case inst of
       Label l ->
         throwErr $ "Labels are not supposed to exist in this stage: " ++ ppLabel l
@@ -168,6 +178,11 @@ interpreterStep m insts = \case
         a2' <- getSrc m a2
         interpreterStep (m { zf = a1' == a2' }) insts next
 
+      ITest a1 a2 -> do
+        a1' <- getSrc m a1
+        a2' <- getSrc m a2
+        interpreterStep (m { zf = a1' .&. a2' == 0 }) insts next
+
       IJmp lbl ->
         interpreterStep m insts =<<
           lookupErr lbl insts
@@ -188,11 +203,30 @@ interpreterStep m insts = \case
             else
               lookupErr lbl insts
 
+      IJz lbl ->
+        interpreterStep m insts =<<
+          if zf m
+            then
+              lookupErr lbl insts
+            else
+              pure next
+
       IRet -> do
         rv <- maybe (throwErr "Could not find variable ESP") (pure . (+1)) $ M.lookup ESP (regs m)
         let retAddr = (stack m V.! fromIntegral rv)
         let m' = m { regs = M.insert ESP rv (regs m) }
-        interpreterStep m' insts (IJmp ("call", retAddr) : next)
+        interpreterStep m' insts (IJmp ("call", Just retAddr) : next)
+
+      ICall ("error", Nothing) -> do
+        rv <- maybe (throwErr "Could not find variable ESP") (pure . (+2)) $ M.lookup ESP (regs m)
+        let errCode = (stack m V.! fromIntegral (rv - 1))
+        let val = (stack m V.! fromIntegral rv)
+        throwErr $ case int32ToVal val of
+          Right v
+            | errCode == 1 -> "Type Error: Expected a number but got: " ++ show v
+            | errCode == 2 -> "Type Error: Expected a boolean but got: " ++ show v
+          _ -> "Unknown arguments to error: errCode = " ++ show errCode ++ ", val = " ++ show val
+
 
       _ -> throwErr $ "Unexpected instruction: " <> groom inst
 
@@ -209,7 +243,7 @@ modifyDest f m = \case
     rv <- getSrc m (Reg r)
     pure $ \i -> do
       result <- f rv i
-      pure $ m { regs = M.insert r result (regs m) }
+      pure $ m { zf = result == 0, regs = M.insert r result (regs m) }
 
   RegOffset reg n -> do
     regVal <- getSrc m (Reg reg) `catchError` \_ -> pure 0
@@ -217,7 +251,7 @@ modifyDest f m = \case
     pure $ \i -> do
       result <- f regOffsetVal i
       let index = fromIntegral (regVal - n)
-      pure $ m { stack = stack m V.// [(index, result)] }
+      pure $ m { zf = result == 0, stack = stack m V.// [(index, result)] }
 
   x ->
     throwErr $ "getSrcF: Not supported: " ++ show x

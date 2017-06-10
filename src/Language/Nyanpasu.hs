@@ -13,7 +13,6 @@ module Language.Nyanpasu
   )
 where
 
-import Data.Bits
 import System.IO
 import System.Exit
 
@@ -71,11 +70,11 @@ interpreter expr =
 
 interpretX86 :: Expr () -> IO ()
 interpretX86 expr =
-  case X86.interpret expr of
+  case int32ToVal =<< X86.interpret expr of
     Left (err :: Error ()) -> do
       hPutStrLn stderr (displayError err)
       exitFailure
-    Right ((`shiftR` 1) -> rs) ->
+    Right rs ->
       print rs
 
 samples :: [Expr ()]

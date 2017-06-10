@@ -44,17 +44,20 @@ data Instruction
   | IShr Arg Arg
   | ISar Arg Arg
   | ISal Arg Arg
+  | ITest Arg Arg
   | IJmp  Label
   | IJe   Label
   | IJnz  Label
+  | IJz   Label
   | Label Label
   | ICall Label
   | IRet
   | IPush Arg
   | IPop  Arg
+  | EmptyInst
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
-type Label = (String, Int32)
+type Label = (String, Maybe Int32)
 
 -- | The Arg type
 --   represents an x86 assembly argument to an instruction
@@ -113,15 +116,7 @@ compileProgram expr = do
         , "ret"
         ]
 
-    errors =
-      unlines
-        [ "jmp end"
-        , "error_not_number:"
-        , "jmp end"
-        , ""
-        , "error_not_bool:"
-        , "jmp end"
-        ]
+    errors = ppAsm (errorNotNumber ++ errorNotBool)
 
 -- | Compile an expression and output a assembly list of instructions
 compileExprRaw :: AST.Expr () -> Either (Error ann) [Instruction]
@@ -172,15 +167,15 @@ compileExpr = \case
    pure $ concat
      [ testAsm
      , [ ICmp (Reg EAX) (Const falseValue)
-       , IJe   ("if_false", path)
-       , Label ("if_true",  path)
+       , IJe   ("if_false", Just path)
+       , Label ("if_true",  Just path)
        ]
      , trueAsm
-     , [ IJmp  ("if_done",  path)
-       , Label ("if_false", path)
+     , [ IJmp  ("if_done",  Just path)
+       , Label ("if_false", Just path)
        ]
      , falseAsm
-     ,  [ Label ("if_done", path) ]
+     ,  [ Label ("if_done", Just path) ]
      ]
 
 -- | Compile an immediate value to an x86 argument
@@ -307,7 +302,22 @@ deallocateStackFrame =
   ]
 
 withStackFrame :: Expr Int32 -> [Instruction] -> [Instruction]
-withStackFrame expr insts = allocateStackFrame expr ++ insts ++ deallocateStackFrame
+withStackFrame expr insts =
+  allocateStackFrame expr ++ [EmptyInst] ++ insts ++  [EmptyInst] ++ deallocateStackFrame
+
+errorNotNumber :: [Instruction]
+errorNotNumber =
+  [ Label ("error_not_number", Nothing)
+  , IPush (Const 1)
+  , ICall ("error", Nothing)
+  ]
+
+errorNotBool :: [Instruction]
+errorNotBool =
+  [ Label ("error_not_bool", Nothing)
+  , IPush (Const 2)
+  , ICall ("error", Nothing)
+  ]
 
 ------------------------
 -- To Assembly String --
@@ -336,6 +346,8 @@ ppInstruction = \case
     ppOp "or"  dest src
   ICmp dest src ->
     ppOp "cmp" dest src
+  ITest dest src ->
+    ppOp "test" dest src
   IShr dest src ->
     ppOp "shr" dest src
   ISar dest src ->
@@ -350,6 +362,8 @@ ppInstruction = \case
     "je " <> ppLabel lbl
   IJnz lbl ->
     "jnz " <> ppLabel lbl
+  IJz lbl ->
+    "jz " <> ppLabel lbl
   Label lbl ->
     ppLabel lbl <> ":"
   IRet ->
@@ -360,11 +374,16 @@ ppInstruction = \case
     "push " <> ppArg arg
   IPop arg ->
     "pop " <> ppArg arg
+  EmptyInst ->
+    ""
 
 -- | Pretty print a label
 ppLabel :: Label -> String
-ppLabel (lbl, i) =
-  lbl <> "_" <> show i
+ppLabel (lbl, mi) = case mi of
+  Just i ->
+    lbl <> "_" <> show i
+  Nothing ->
+    lbl
 
 -- | Pretty print an operation with two arguments
 ppOp :: String -> Arg -> Arg -> String
@@ -395,16 +414,20 @@ ppReg = map toLower . show
 ------------
 
 checkNum :: Arg -> [Instruction]
-checkNum arg = []
---  [ IMov arg (Const -1)
---  , IJmp ("end", -1)
---  ]
+checkNum arg =
+  [ IPush arg
+  , ITest arg (Const boolTag)
+  , IJnz ("error_not_number", Nothing)
+  , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
+  ]
 
 checkBool :: Arg -> [Instruction]
-checkBool arg = []
---  [ IMov arg (Const -2)
---  , IJmp ("end", -1)
---  ]
+checkBool arg =
+  [ IPush arg
+  , ITest arg (Const boolTag)
+  , IJz ("error_not_bool", Nothing)
+  , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
+  ]
 
 ---------------
 -- Constants --
@@ -421,3 +444,6 @@ falseValue = 0x1
 
 trueTag :: Int32
 trueTag = -2147483648
+
+defLabelId :: Maybe Int32
+defLabelId = Just (-1)

@@ -24,7 +24,7 @@ const int ERR_NOT_NUMBER = 1;
 const int ERR_NOT_BOOLEAN = 2;
 // other error codes here
 
-void error(int val, int errCode) {
+void error(int errCode, int val) {
   if (errCode == ERR_NOT_NUMBER) {
     fprintf(stderr, "Expected number, but got %010x\n", val);
   } else if (errCode == ERR_NOT_BOOLEAN) {
