@@ -17,9 +17,8 @@ import qualified Data.Vector as V
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.LL.AST (Expr)
 import Language.Nyanpasu.LL.Interpreter (int32ToVal)
-import Language.Nyanpasu.Assembly.X86.CodeGen
+import Language.Nyanpasu.Assembly.X86
 
 import Text.Groom
 
@@ -125,10 +124,6 @@ rewrites insts = evalState (go insts) (biggestLabel insts :: Int32)
           i <- get
           put (i + 1)
           pure i
-
--- | Compile and interpret an AST.Expr
-interpret :: Expr () -> Either (Error ann) Int32
-interpret = runInterpreter <=< compileExprRaw
 
 -- | Execute instructions
 runInterpreter :: [Instruction] -> Either (Error ann) Int32
@@ -272,5 +267,8 @@ getSrc m = \case
   ArgTimes _ arg ->
     getSrc m arg
 
-  x ->
-    throwErr $ "getDest: Not supported: " ++ show x
+  -- x ->
+  --   throwErr $ "getDest: Not supported: " ++ show x
+
+defLabelId :: Maybe Int32
+defLabelId = Just (-1)

@@ -10,17 +10,21 @@ module Language.Nyanpasu
   , interpretX86
   , interpreter
   , samples
+  , x86Interpret
   )
 where
 
 import System.IO
 import System.Exit
+import Control.Monad
 
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils (readFail)
 import Language.Nyanpasu.Options as Export
 import Language.Nyanpasu.LL as Export
 import Language.Nyanpasu.Error as Export
-import qualified Language.Nyanpasu.Assembly.X86 as X86
+import qualified Language.Nyanpasu.LL.CodeGen as CG
+import qualified Language.Nyanpasu.Assembly.X86.Interpreter as X86
 
 run :: IO ()
 run = do
@@ -52,17 +56,17 @@ run = do
 
 compileX86 :: Expr () -> IO ()
 compileX86 expr =
-  case X86.compileProgram expr of
+  case CG.compileProgram expr of
     Left (err :: Error ()) -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
       print rs
 
-interpreter :: Show ann => Expr ann -> IO ()
+interpreter :: Expr () -> IO ()
 interpreter expr =
-  case interpret expr of
-    Left err -> do
+  case x86Interpret expr of
+    Left (err :: Error ()) -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
@@ -70,12 +74,16 @@ interpreter expr =
 
 interpretX86 :: Expr () -> IO ()
 interpretX86 expr =
-  case int32ToVal =<< X86.interpret expr of
+  case int32ToVal =<< x86Interpret expr of
     Left (err :: Error ()) -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
       print rs
+
+-- | Compile and interpret an AST.Expr
+x86Interpret :: Expr () -> Either (Error ann) Int32
+x86Interpret = X86.runInterpreter <=< CG.compileExprRaw
 
 samples :: [Expr ()]
 samples =

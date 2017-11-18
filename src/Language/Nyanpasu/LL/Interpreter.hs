@@ -12,7 +12,7 @@ import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST
-import Language.Nyanpasu.Assembly.X86.CodeGen (trueValue, falseValue, boolTag)
+import Language.Nyanpasu.LL.CodeGen (trueValue, falseValue, boolTag)
 
 type Val = Atom ()
 

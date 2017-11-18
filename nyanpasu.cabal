@@ -23,8 +23,8 @@ library
      Language.Nyanpasu.LL.ANF
      Language.Nyanpasu.LL.Interpreter
      Language.Nyanpasu.LL.CodeGenUtils
+     Language.Nyanpasu.LL.CodeGen
      Language.Nyanpasu.Assembly.X86
-     Language.Nyanpasu.Assembly.X86.CodeGen
      Language.Nyanpasu.Assembly.X86.Interpreter
      Language.Nyanpasu.Error
      Language.Nyanpasu.Utils

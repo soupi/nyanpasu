@@ -9,14 +9,14 @@ import Control.Monad
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.LL.AST
 import qualified Language.Nyanpasu.LL.Interpreter as LLI
-import qualified Language.Nyanpasu.Assembly.X86 as X86
+import Language.Nyanpasu (x86Interpret)
 
 tests :: TestTree
 tests =
   testGroup "Interpreter" $
     mconcat
       [ zipWith (\n t -> testCase ("LLI.Interpreter " ++ show n) t) [1..] (inter LLI.interpret)
-      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (LLI.int32ToVal <=< X86.interpret))
+      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (LLI.int32ToVal <=< x86Interpret))
       ]
 
 inter :: (Expr () -> Either (Error ()) LLI.Val) -> [Assertion]
