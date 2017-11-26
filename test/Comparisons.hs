@@ -4,7 +4,7 @@ import Testing
 
 import Data.Bits
 import Language.Nyanpasu.Types
-import Language.Nyanpasu.LL.AST
+import Language.Nyanpasu.IR.AST
 
 tests :: TestTree
 tests =

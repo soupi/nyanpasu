@@ -18,12 +18,12 @@ library
   hs-source-dirs:      src
   exposed-modules:
      Language.Nyanpasu
-     Language.Nyanpasu.LL
-     Language.Nyanpasu.LL.AST
-     Language.Nyanpasu.LL.ANF
-     Language.Nyanpasu.LL.Interpreter
-     Language.Nyanpasu.LL.CodeGenUtils
-     Language.Nyanpasu.LL.CodeGen
+     Language.Nyanpasu.IR
+     Language.Nyanpasu.IR.AST
+     Language.Nyanpasu.IR.ANF
+     Language.Nyanpasu.IR.Interpreter
+     Language.Nyanpasu.IR.CodeGenUtils
+     Language.Nyanpasu.IR.CodeGen
      Language.Nyanpasu.Assembly.X86
      Language.Nyanpasu.Assembly.X86.Interpreter
      Language.Nyanpasu.Error

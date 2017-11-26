@@ -21,9 +21,9 @@ import Control.Monad
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils (readFail)
 import Language.Nyanpasu.Options as Export
-import Language.Nyanpasu.LL as Export
+import Language.Nyanpasu.IR as Export
 import Language.Nyanpasu.Error as Export
-import qualified Language.Nyanpasu.LL.CodeGen as CG
+import qualified Language.Nyanpasu.IR.CodeGen as CG
 import qualified Language.Nyanpasu.Assembly.X86.Interpreter as X86
 
 run :: IO ()
@@ -74,7 +74,7 @@ interpreter expr =
 
 interpretX86 :: Expr () -> IO ()
 interpretX86 expr =
-  case int32ToVal =<< x86Interpret expr of
+  case int32ToVal () =<< x86Interpret expr of
     Left (err :: Error ()) -> do
       hPutStrLn stderr (displayError err)
       exitFailure

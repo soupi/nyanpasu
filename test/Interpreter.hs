@@ -7,19 +7,19 @@ import Control.Monad
 
 -- import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.LL.AST
-import qualified Language.Nyanpasu.LL.Interpreter as LLI
+import Language.Nyanpasu.IR.AST
+import qualified Language.Nyanpasu.IR.Interpreter as IR
 import Language.Nyanpasu (x86Interpret)
 
 tests :: TestTree
 tests =
   testGroup "Interpreter" $
     mconcat
-      [ zipWith (\n t -> testCase ("LLI.Interpreter " ++ show n) t) [1..] (inter LLI.interpret)
-      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (LLI.int32ToVal <=< x86Interpret))
+      [ zipWith (\n t -> testCase ("IR.Interpreter " ++ show n) t) [1..] (inter IR.interpret)
+      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (IR.int32ToVal <=< x86Interpret))
       ]
 
-inter :: (Expr () -> Either (Error ()) LLI.Val) -> [Assertion]
+inter :: (Expr () -> Either (Error ()) IR.Val) -> [Assertion]
 inter interpret =
   [ interpret (num_ 5) @=?
       Right (Num () 5)

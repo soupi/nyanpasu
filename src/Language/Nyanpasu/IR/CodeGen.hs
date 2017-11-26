@@ -3,14 +3,14 @@
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable, NegativeLiterals #-}
 
-module Language.Nyanpasu.LL.CodeGen where
+module Language.Nyanpasu.IR.CodeGen where
 
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.LL.ANF
-import Language.Nyanpasu.LL.CodeGenUtils
+import Language.Nyanpasu.IR.ANF
+import Language.Nyanpasu.IR.CodeGenUtils
 import Language.Nyanpasu.Assembly.X86
-import qualified Language.Nyanpasu.LL.AST as AST
+import qualified Language.Nyanpasu.IR.AST as AST
 
 import Data.Bits
 import Data.Bool

@@ -3,13 +3,13 @@
 -}
 
 
-module Language.Nyanpasu.LL.CodeGenUtils where
+module Language.Nyanpasu.IR.CodeGenUtils where
 
-import Language.Nyanpasu.LL.ANF
+import Language.Nyanpasu.IR.ANF
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
-import qualified Language.Nyanpasu.LL.AST as AST
+import qualified Language.Nyanpasu.IR.AST as AST
 
 import Data.Monoid
 import Control.Monad.State
@@ -77,7 +77,7 @@ runExprToANF astExpr = fmap assignLabels . runExcept . flip evalStateT initState
 
 -- | Algorithm to convert an `AST.Expr a` to `ANF.Expr a`
 --   We will also assign permanent addresses for each identifier
-exprToANF :: AST.Expr a -> StateT CodeGenState (Except (Error ann)) (Expr a)
+exprToANF :: Data a => AST.Expr a -> StateT CodeGenState (Except (Error ann)) (Expr a)
 exprToANF = \case
 
   -- Atom is already immediate

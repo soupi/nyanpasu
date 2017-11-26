@@ -12,7 +12,7 @@ import Control.DeepSeq
 import Control.Monad.Except
 import Text.Groom (groom)
 
-import Language.Nyanpasu.LL.AST (Atom(..), TypeError(..), Expr(..), ppAtom)
+import Language.Nyanpasu.IR.AST (Atom(..), TypeError(..), Expr(..), ppAtom)
 
 data Error a
   = Error String

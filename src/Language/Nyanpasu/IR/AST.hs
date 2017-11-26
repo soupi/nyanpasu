@@ -1,14 +1,17 @@
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable #-}
 {- | Definition of the low-level IR for the compiler
 -}
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
 
-module Language.Nyanpasu.LL.AST where
+module Language.Nyanpasu.IR.AST where
 
-import Data.Monoid
 import Data.Data
 import GHC.Generics
 import Control.DeepSeq
+import Data.Generics.Uniplate.Data
 import Language.Nyanpasu.Types
 
 -------------------
@@ -20,7 +23,7 @@ import Language.Nyanpasu.Types
 data Atom a
   = Num a Int32
   | Bool a Bool
-  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | A data type for errors
 --
@@ -39,7 +42,24 @@ data Expr a
   | Idn a Name
   | Let a Name (Expr a) (Expr a)
   | If a (Expr a) (Expr a) (Expr a)
-  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor)
+  | Call a Name [Expr a]
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
+
+-- | A definition of a function or value
+--
+data Def a
+  = Fun a Name [Name] (Expr a)
+  | Val a Name (Expr a)
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
+-- | The Program type
+--   Represents a sequence of expressions
+--
+data Program a
+  = Program [Def a] [Expr a]
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
 
 -- | The PrimOp type
 --   represents a primitive operation in the language
@@ -49,11 +69,13 @@ data PrimOp
   | BoolOp BoolOp
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
+-- | Unary num operation
 data NumOp
   = Inc
   | Dec
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
+-- | Unary bool operation
 data BoolOp
   = Not
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
@@ -87,68 +109,34 @@ data BoolBinOp
   | Xor
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
----------------------
--- Class Instances --
----------------------
-
-instance Foldable Atom where
-  foldMap f = \case
-    Num a _ -> f a
-    Bool a _ -> f a
-
-instance Traversable Atom where
-  traverse f = \case
-    Num a i -> flip Num i <$> f a
-    Bool a i -> flip Bool i <$> f a
-
-instance Foldable Expr where
-  foldMap f = \case
-    Atom a -> foldMap f a
-    PrimOp a _ e -> f a <> foldMap f e
-    PrimBinOp a _ e1 e2 -> f a <> foldMap f e1 <> foldMap f e2
-    Idn a _ -> f a
-    Let a _ b e -> f a <> foldMap f b <> foldMap f e
-    If a t t' f' -> f a <> foldMap f t <> foldMap f t' <> foldMap f f'
-
-instance Traversable Expr where
-  traverse f = \case
-    Atom a -> Atom <$> traverse f a
-    PrimOp a op e -> PrimOp <$> f a <*> pure op <*> traverse f e
-    PrimBinOp a op e1 e2 -> PrimBinOp <$> f a <*> pure op <*> traverse f e1 <*> traverse f e2
-    Idn a n -> flip Idn n <$> f a
-    Let a n b e -> flip Let n <$> f a <*> traverse f b <*> traverse f e
-    If a t t' f' ->
-      If <$> f a <*> traverse f t <*> traverse f t' <*> traverse f f'
-
-
 -----------------
 -- Annotations --
 -----------------
 
-getAnn :: Expr a -> a
-getAnn = \case
-  Atom (Num a _) -> a
-  Atom (Bool a _) -> a
-  PrimOp a _ _ -> a
-  PrimBinOp a _ _ _ -> a
-  Idn a _ -> a
-  Let a _ _ _ -> a
-  If  a _ _ _ -> a
+class Annotated f where
+  getAnn :: Data a => f a -> a
+  setAnn :: a -> f a -> f a
 
-setAnn :: a -> Expr a -> Expr a
-setAnn ann = \case
-  Atom (Num _ e) -> Atom (Num ann e)
-  Atom (Bool _ e) -> Atom (Bool ann e)
-  PrimOp _ op e -> PrimOp ann op e
-  PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2
-  Idn _ i -> Idn ann i
-  Let _ n b e -> Let ann n b e
-  If _ t f' t' -> If ann t f' t'
+instance Annotated Atom where
+  getAnn :: Data a => Atom a -> a
+  getAnn = head . childrenBi
+  setAnn :: b -> Atom a -> Atom b
+  setAnn newAnn = \case
+    Num  _ n -> Num  newAnn n
+    Bool _ b -> Bool newAnn b
 
-setAnnAtom :: b -> Atom a -> Atom b
-setAnnAtom newAnn = \case
-  Num  _ n -> Num  newAnn n
-  Bool _ b -> Bool newAnn b
+instance Annotated Expr where
+  getAnn :: Data a => Expr a -> a
+  getAnn = head . childrenBi
+  setAnn :: a -> Expr a -> Expr a
+  setAnn ann = \case
+    Atom a -> Atom (setAnn ann a)
+    PrimOp _ op e -> PrimOp ann op e
+    PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2
+    Idn _ i -> Idn ann i
+    Let _ name bind body -> Let ann name bind body
+    If _ test falseBranch trueBranch -> If ann test falseBranch trueBranch
+    Call _ fun args -> Call ann fun args
 
 ppAtom :: Atom a -> String
 ppAtom = \case

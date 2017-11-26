@@ -17,7 +17,7 @@ import qualified Data.Vector as V
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.LL.Interpreter (int32ToVal)
+import Language.Nyanpasu.IR.Interpreter (int32ToVal)
 import Language.Nyanpasu.Assembly.X86
 
 import Text.Groom
@@ -216,7 +216,7 @@ interpreterStep m insts = \case
         rv <- maybe (throwErr "Could not find variable ESP") (pure . (+2)) $ M.lookup ESP (regs m)
         let errCode = (stack m V.! fromIntegral (rv - 1))
         let val = (stack m V.! fromIntegral rv)
-        throwErr $ case int32ToVal val of
+        throwErr $ case int32ToVal () val of
           Right v
             | errCode == 1 -> "Type Error: Expected a number but got: " ++ show v
             | errCode == 2 -> "Type Error: Expected a boolean but got: " ++ show v
