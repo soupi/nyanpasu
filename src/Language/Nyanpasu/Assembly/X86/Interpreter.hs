@@ -70,10 +70,10 @@ initMachine = Machine (V.replicate 1000 0 V.// [(901, -1)]) (M.fromList [(ESP, 9
 --
 --   May fail if a label is redefined
 --
-mkInstructions :: [Instruction] -> Either (Error ann) Instructions
+mkInstructions :: [Instruction] -> Either Error Instructions
 mkInstructions = go (fmap rewrites initInsts) ("start", Nothing) [] . rewrites
   where
-    go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either (Error ann) Instructions
+    go :: Instructions -> Label -> [Instruction] -> [Instruction] -> Either Error Instructions
     go insts lbl lblInsts = \case
       [] -> pure $ M.insert lbl (reverse lblInsts) insts
 
@@ -126,7 +126,7 @@ rewrites insts = evalState (go insts) (biggestLabel insts :: Int32)
           pure i
 
 -- | Execute instructions
-runInterpreter :: [Instruction] -> Either (Error ann) Int32
+runInterpreter :: [Instruction] -> Either Error Int32
 runInterpreter instructions = do
   insts <- mkInstructions instructions
   lookupErr EAX . regs =<<
@@ -134,7 +134,7 @@ runInterpreter instructions = do
      lookupErr ("start", Nothing) insts
 
 -- | One step of instructions
-interpreterStep :: Machine -> Instructions -> [Instruction] -> Either (Error ann) Machine
+interpreterStep :: Machine -> Instructions -> [Instruction] -> Either Error Machine
 interpreterStep m insts = \case
   [] -> pure m
   inst : next -> do
@@ -232,7 +232,7 @@ interpreterStep m insts = \case
         newMachine <- toDest src
         interpreterStep newMachine insts next
 
-modifyDest :: MonadError (Error ann) m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
+modifyDest :: MonadError Error m => (Int32 -> Int32 -> m Int32) -> Machine -> Arg -> m (Int32 -> m Machine)
 modifyDest f m = \case
   Reg r -> do
     rv <- getSrc m (Reg r)
@@ -251,7 +251,7 @@ modifyDest f m = \case
   x ->
     throwErr $ "getSrcF: Not supported: " ++ show x
 
-getSrc :: MonadError (Error ann) m => Machine -> Arg -> m Int32
+getSrc :: MonadError Error m => Machine -> Arg -> m Int32
 getSrc m = \case
   Reg r ->
     pure . fromMaybe 0 $ M.lookup r (regs m)

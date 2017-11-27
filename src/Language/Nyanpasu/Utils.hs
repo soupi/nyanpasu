@@ -13,7 +13,7 @@ import Text.Groom (groom)
 
 import Language.Nyanpasu.Error
 
-lookupM :: (MonadError (Error ann) m, MonadState s m) => (s -> M.Map String v) -> String -> m v
+lookupM :: (MonadError Error m, MonadState s m) => (s -> M.Map String v) -> String -> m v
 lookupM getter key = do
   env <- getter <$> get
   case M.lookup key env of
@@ -22,7 +22,7 @@ lookupM getter key = do
     Just v ->
       pure v
 
-llookupM :: (MonadError (Error ann) m, MonadState s m) => (s -> [(String, v)]) -> String -> m v
+llookupM :: (MonadError Error m, MonadState s m) => (s -> [(String, v)]) -> String -> m v
 llookupM getter key = do
   env <- getter <$> get
   case lookup key env of
@@ -31,7 +31,7 @@ llookupM getter key = do
     Just v ->
       pure v
 
-lookupErr :: (Show k, Ord k, MonadError (Error ann) m) => k -> M.Map k v -> m v
+lookupErr :: (Show k, Ord k, MonadError Error m) => k -> M.Map k v -> m v
 lookupErr key env = do
   case M.lookup key env of
     Nothing ->

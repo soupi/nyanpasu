@@ -60,7 +60,7 @@ data Expr a
   | PrimBinOp a PrimBinOp (Atom a) (Atom a)
   | Let a Address (Expr a) (Expr a)
   | If a (Atom a) (Expr a) (Expr a)
-  | Call a (Atom a) [Atom a]
+  | Call a Name [Atom a]
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | An immediate value
@@ -78,8 +78,6 @@ type Address = Int32
 ---------------------
 -- Class Instances --
 ---------------------
-
-
 
 class Annotated f where
   getAnn :: Data a => f a -> a
@@ -104,7 +102,7 @@ instance Annotated Expr where
     PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2
     Let _ name bind body -> Let ann name bind body
     If _ test falseBranch trueBranch -> If ann test falseBranch trueBranch
-    --Call _ fun args -> Call ann fun args
+    Call _ fun args -> Call ann fun args
 
 -----------------
 -- Annotations --

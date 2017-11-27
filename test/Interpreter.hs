@@ -16,10 +16,10 @@ tests =
   testGroup "Interpreter" $
     mconcat
       [ zipWith (\n t -> testCase ("IR.Interpreter " ++ show n) t) [1..] (inter IR.interpret)
-      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (IR.int32ToVal <=< x86Interpret))
+      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (IR.int32ToVal () <=< x86Interpret))
       ]
 
-inter :: (Expr () -> Either (Error ()) IR.Val) -> [Assertion]
+inter :: (Expr () -> Either Error (Atom ())) -> [Assertion]
 inter interpret =
   [ interpret (num_ 5) @=?
       Right (Num () 5)

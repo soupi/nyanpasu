@@ -57,7 +57,7 @@ run = do
 compileX86 :: Expr () -> IO ()
 compileX86 expr =
   case CG.compileProgram expr of
-    Left (err :: Error ()) -> do
+    Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
@@ -66,7 +66,7 @@ compileX86 expr =
 interpreter :: Expr () -> IO ()
 interpreter expr =
   case x86Interpret expr of
-    Left (err :: Error ()) -> do
+    Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
@@ -75,14 +75,14 @@ interpreter expr =
 interpretX86 :: Expr () -> IO ()
 interpretX86 expr =
   case int32ToVal () =<< x86Interpret expr of
-    Left (err :: Error ()) -> do
+    Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
       print rs
 
 -- | Compile and interpret an AST.Expr
-x86Interpret :: Expr () -> Either (Error ann) Int32
+x86Interpret :: Expr () -> Either Error Int32
 x86Interpret = X86.runInterpreter <=< CG.compileExprRaw
 
 samples :: [Expr ()]

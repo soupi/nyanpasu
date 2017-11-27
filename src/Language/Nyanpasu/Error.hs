@@ -14,18 +14,18 @@ import Text.Groom (groom)
 
 import Language.Nyanpasu.IR.AST (Atom(..), TypeError(..), Expr(..), ppAtom)
 
-data Error a
+data Error
   = Error String
-  | TError TypeError (Atom a) (Expr a)
+  | TError TypeError (Atom String) (Expr String)
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
-throwErr :: MonadError (Error ann) m => String -> m a
+throwErr :: MonadError Error m => String -> m a
 throwErr = throwError . Error
 
-throwTErr :: MonadError (Error ann) m => TypeError -> Atom ann -> Expr ann -> m a
-throwTErr te a e = throwError $ TError te a e
+throwTErr :: (Show ann) => MonadError Error m => TypeError -> Atom ann -> Expr ann -> m a
+throwTErr te a e = throwError $ TError te (fmap show a) (fmap show e)
 
-displayError :: Show ann => Error ann -> String
+displayError :: Error -> String
 displayError = \case
   Error s ->
     "Error: " <> s

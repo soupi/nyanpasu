@@ -18,9 +18,9 @@ import Language.Nyanpasu.IR.CodeGen (trueValue, falseValue, boolTag)
 type Env a = M.Map Name (Atom a)
 
 type Interpreter ann a
-  = StateT (Env ann) (Except (Error ann)) a
+  = StateT (Env ann) (Except Error) a
 
-interpret :: (Data a, Show a) => Expr a -> Either (Error a) (Atom a)
+interpret :: (Data a, Show a) => Expr a -> Either Error (Atom a)
 interpret =
   runExcept . flip evalStateT M.empty . runInterpreter
 
@@ -91,33 +91,33 @@ runInterpreter expr = case expr of
           else false
 
 
-num1 :: Data a => Expr a -> (Int32 -> Atom a) -> Atom a -> Interpreter a (Atom a)
+num1 :: (Show a, Data a) => Expr a -> (Int32 -> Atom a) -> Atom a -> Interpreter a (Atom a)
 num1 expr f v = case v of
   Num _  i -> pure (f i)
   _ -> throwTErr NotANumber (setAnn (getAnn expr) v) expr
 
-num2 :: Data a => Expr a -> (Int32 -> Int32 -> Atom a) -> Atom a -> Atom a -> Interpreter a (Atom a)
+num2 :: (Show a, Data a) => Expr a -> (Int32 -> Int32 -> Atom a) -> Atom a -> Atom a -> Interpreter a (Atom a)
 num2 expr f v1 v2 = case v1 of
   Num _  i -> num1 expr (f i) v2
   _ -> throwTErr NotANumber (setAnn (getAnn expr) v1) expr
 
-bool1 :: Data a => Expr a -> (Bool -> Bool) -> Atom a -> Interpreter a (Atom a)
+bool1 :: (Show a, Data a) => Expr a -> (Bool -> Bool) -> Atom a -> Interpreter a (Atom a)
 bool1 expr f v = case v of
   Bool _ b -> pure (Bool (getAnn expr) $ f b)
   _ -> throwTErr NotABool (setAnn (getAnn expr) v) expr
 
-bool2 :: Data a => Expr a -> (Bool -> Bool -> Bool) -> Atom a -> Atom a -> Interpreter a (Atom a)
+bool2 :: (Show a, Data a) => Expr a -> (Bool -> Bool -> Bool) -> Atom a -> Atom a -> Interpreter a (Atom a)
 bool2 expr f v1 v2 = case v1 of
   Bool _ b -> bool1 expr (f b) v2
   _ -> throwTErr NotABool (setAnn (getAnn expr) v1) expr
 
-bool1M :: Data a => Expr a -> Atom a -> (Bool -> Interpreter a (Atom a)) -> Interpreter a (Atom a)
+bool1M :: (Show a, Data a) => Expr a -> Atom a -> (Bool -> Interpreter a (Atom a)) -> Interpreter a (Atom a)
 bool1M expr v f = case v of
   Bool _ b -> f b
   _ -> throwTErr NotABool (setAnn (getAnn expr) v) expr
 
 
-int32ToVal :: a -> Int32 -> Either (Error ann) (Atom a)
+int32ToVal :: a -> Int32 -> Either Error (Atom a)
 int32ToVal ann i
   | i .&. boolTag /= 0
   , i == trueValue = pure (Bool ann True)

@@ -9,6 +9,7 @@ import Language.Nyanpasu.Types
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.IR.ANF
 import Language.Nyanpasu.IR.CodeGenUtils
+import Language.Nyanpasu.IR.Rewrites
 import Language.Nyanpasu.Assembly.X86
 import qualified Language.Nyanpasu.IR.AST as AST
 
@@ -24,7 +25,7 @@ import Control.Monad.Except
 ---------------------
 
 -- | Compile an expression and output an assembly string
-compileProgram :: AST.Expr () -> Either (Error ann) Assembly
+compileProgram :: AST.Expr () -> Either Error Assembly
 compileProgram expr = do
   asmStr <- ppAsm <$> compileExprRaw expr
   pure $ Assembly $
@@ -53,9 +54,9 @@ compileProgram expr = do
     errors = ppAsm (errorNotNumber ++ errorNotBool)
 
 -- | Compile an expression and output a assembly list of instructions
-compileExprRaw :: AST.Expr () -> Either (Error ann) [Instruction]
+compileExprRaw :: AST.Expr () -> Either Error [Instruction]
 compileExprRaw expr = do
-  e <- runExprToANF expr
+  e <- rewrites expr
   insts <- runExcept . flip evalStateT initState $ compileExpr e
   pure (withStackFrame e insts)
 

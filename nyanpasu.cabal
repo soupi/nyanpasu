@@ -24,6 +24,10 @@ library
      Language.Nyanpasu.IR.Interpreter
      Language.Nyanpasu.IR.CodeGenUtils
      Language.Nyanpasu.IR.CodeGen
+     Language.Nyanpasu.IR.Rewrites
+     Language.Nyanpasu.IR.Rewrites.AST
+     Language.Nyanpasu.IR.Rewrites.ANF
+     Language.Nyanpasu.IR.Rewrites.ANF.AstToAnf
      Language.Nyanpasu.Assembly.X86
      Language.Nyanpasu.Assembly.X86.Interpreter
      Language.Nyanpasu.Error

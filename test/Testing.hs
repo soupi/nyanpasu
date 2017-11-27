@@ -9,7 +9,7 @@ import Test.Tasty.QuickCheck as Testing
 import Text.Groom
 
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.IR.AST (Expr)
+import Language.Nyanpasu.IR.AST (Expr, Atom)
 import qualified Language.Nyanpasu.IR.Interpreter as IR
 import Language.Nyanpasu (x86Interpret)
 
@@ -37,7 +37,7 @@ assertEq (x,y) =
 x @=? y = assertEq (x,y)
 
 
-compareProgram ::
-  (Either (Error ()) IR.Val -> Either (Error ()) IR.Val -> t) -> Expr () -> t
+compareProgram :: 
+  (Either Error (Atom ()) -> Either Error (Atom ()) -> t) -> Expr () -> t
 compareProgram cmp e =
-  (IR.int32ToVal =<< x86Interpret e) `cmp` IR.interpret e
+  (IR.int32ToVal () =<< x86Interpret e) `cmp` IR.interpret e
