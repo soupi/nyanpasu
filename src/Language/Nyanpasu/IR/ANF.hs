@@ -25,9 +25,12 @@ module Language.Nyanpasu.IR.ANF
   , Expr(..)
   , Atom(..)
   , Address
+  , Def(..)
+  , Program(..)
   , getAnn
   , setAnn
   , getAtom
+  , defLabels
   )
 where
 
@@ -47,6 +50,8 @@ import GHC.Generics
 import Control.DeepSeq
 import Data.Generics.Uniplate.Data
 
+import Language.Nyanpasu.Assembly.X86 (Label)
+
 -----------------------
 -- ANF Functional IR --
 -----------------------
@@ -60,7 +65,7 @@ data Expr a
   | PrimBinOp a PrimBinOp (Atom a) (Atom a)
   | Let a Address (Expr a) (Expr a)
   | If a (Atom a) (Expr a) (Expr a)
-  | Call a Name [Atom a]
+  | Call a Label [Atom a]
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | An immediate value
@@ -74,6 +79,23 @@ data Atom a
 -- | A stack address for a variable
 --
 type Address = Int32
+
+
+-- | A definition of a function or value
+--
+data Def a
+  = Fun a Label [Name] (Expr a)
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
+-- | The Program type
+--   Represents a sequence of expressions
+--
+data Program a = Program
+  { progDefs :: [Def a]
+  , progMain :: Expr a
+  }
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
 
 ---------------------
 -- Class Instances --
@@ -117,3 +139,8 @@ getAtom :: Expr a -> Maybe (Atom a)
 getAtom = \case
   Atom a -> pure a
   _      -> Nothing
+
+
+defLabels :: Program a -> [Label]
+defLabels prog = flip map (progDefs prog) $ \case
+  Fun _ name _ _ -> name

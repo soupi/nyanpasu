@@ -7,7 +7,7 @@ import qualified Language.Nyanpasu.IR.Rewrites.AST as AST
 
 import Control.Monad.Except
 
-rewrites :: AST.Expr () -> Either Error (ANF.Expr Int32)
+rewrites :: AST.Program () -> Either Error (ANF.Program Int32)
 rewrites expr = runExcept
   $ pure expr
   >>= AST.rewrites

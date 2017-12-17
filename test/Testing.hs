@@ -37,7 +37,7 @@ assertEq (x,y) =
 x @=? y = assertEq (x,y)
 
 
-compareProgram :: 
+compareProgram ::
   (Either Error (Atom ()) -> Either Error (Atom ()) -> t) -> Expr () -> t
 compareProgram cmp e =
   (IR.int32ToVal () =<< x86Interpret e) `cmp` IR.interpret e

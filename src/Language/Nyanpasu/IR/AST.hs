@@ -50,14 +50,15 @@ data Expr a
 --
 data Def a
   = Fun a Name [Name] (Expr a)
-  | Val a Name (Expr a)
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | The Program type
 --   Represents a sequence of expressions
 --
-data Program a
-  = Program [Def a] [Expr a]
+data Program a = Program
+  { progDefs :: [Def a]
+  , progMain :: Expr a
+  }
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 
@@ -206,4 +207,8 @@ greater_ = PrimBinOp () (NumBinOp Greater)
 
 greaterEq_ :: Expr () -> Expr () -> Expr ()
 greaterEq_ = PrimBinOp () (NumBinOp GreaterEq)
+
+defNames :: Program a -> [Name]
+defNames prog = flip map (progDefs prog) $ \case
+  Fun _ name _ _ -> name
 

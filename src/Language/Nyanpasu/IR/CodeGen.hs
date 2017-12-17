@@ -1,7 +1,7 @@
 {- | Code generation for X86
 -}
 
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable, NegativeLiterals #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable, NegativeLiterals, NamedFieldPuns #-}
 
 module Language.Nyanpasu.IR.CodeGen where
 
@@ -25,9 +25,9 @@ import Control.Monad.Except
 ---------------------
 
 -- | Compile an expression and output an assembly string
-compileProgram :: AST.Expr () -> Either Error Assembly
-compileProgram expr = do
-  asmStr <- ppAsm <$> compileExprRaw expr
+compileProgram :: AST.Program () -> Either Error Assembly
+compileProgram program = do
+  asmStr <- ppAsm <$> compileProgramRaw program
   pure $ Assembly $
     unlines
       [ prelude
@@ -42,7 +42,6 @@ compileProgram expr = do
         [ "section .text"
         , "global my_code"
         , "extern error"
-        , "my_code:"
         ]
 
     suffix =
@@ -54,11 +53,14 @@ compileProgram expr = do
     errors = ppAsm (errorNotNumber ++ errorNotBool)
 
 -- | Compile an expression and output a assembly list of instructions
-compileExprRaw :: AST.Expr () -> Either Error [Instruction]
-compileExprRaw expr = do
-  e <- rewrites expr
-  insts <- runExcept . flip evalStateT initState $ compileExpr e
-  pure (withStackFrame e insts)
+compileProgramRaw :: AST.Program () -> Either Error [Instruction]
+compileProgramRaw program = do
+  unless (null $ AST.progDefs program) $
+    throwErr "Function definitions not yet supported"
+  prog'@Program{ progMain } <- rewrites program
+  let funLabels = map (\lbl@(name, _) -> (name, lbl)) (defLabels prog')
+  insts <- runExcept . flip evalStateT (initState funLabels) $ compileExpr progMain
+  pure (Label ("my_code", Nothing) : withStackFrame progMain insts)
 
 
 -- | Compile an expression to a list of instructions
@@ -112,6 +114,11 @@ compileExpr = \case
      , falseAsm
      ,  [ Label ("if_done", Just path) ]
      ]
+
+  Call _ lbl args -> do
+    pushArgs' <- mapM (pure . IPush <=< compileAtom) args
+    -- in this calling convention we push arguments in reverse
+    pure $ reverse $ ICall lbl : pushArgs'
 
 -- | Compile an immediate value to an x86 argument
 compileAtom :: Atom a -> CodeGen ann Arg

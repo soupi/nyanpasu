@@ -17,13 +17,13 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 
-rewrites :: AST.Expr () -> Except Error (Expr Int32)
+rewrites :: AST.Program () -> Except Error (Program Int32)
 rewrites =
-  runExprToANF
+  normalizeProgram
   >=> pure . assignLabels
 
 -- | Assign a unique label to all sub-expressions
-assignLabels :: Expr () -> Expr Int32
+assignLabels :: Program () -> Program Int32
 assignLabels = flip evalState 0 . traverse go
   where
     go () = do
