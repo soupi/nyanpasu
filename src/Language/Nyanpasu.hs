@@ -208,4 +208,34 @@ samplePrograms =
     , progMain = call_ "factorial" [num_ 5]
     }
 
+  , Program
+    { progDefs =
+      [ fun_ "factorial" ["acc", "n"]
+          (if_
+            (eq_ (num_ 0) (idn_ "n"))
+            (idn_ "acc")
+            (call_ "factorial" [mul_ (idn_ "acc") (idn_ "n"), sub_ (idn_ "n") (num_ 1)]))
+      ]
+    , progMain = call_ "factorial" [num_ 1, num_ 5]
+    }
+
+  , Program [] $ call_ "print" [num_ 7]
+
+  , Program
+    { progDefs =
+      [ fun_ "even" ["n"]
+          (if_
+            (eq_ (num_ 0) (idn_ "n"))
+            true_
+            (call_ "odd" [sub_ (idn_ "n") (num_ 1)]))
+
+      , fun_ "odd" ["n"]
+          (if_
+            (eq_ (num_ 0) (idn_ "n"))
+            false_
+            (call_ "even" [sub_ (idn_ "n") (num_ 1)]))
+      ]
+    , progMain = call_ "even" [num_ 51]
+    }
+
   ]
