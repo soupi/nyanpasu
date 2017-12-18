@@ -27,7 +27,7 @@ data Instruction
   = IMov Arg Arg
   | IAdd Arg Arg
   | ISub Arg Arg
-  | IMul Arg Arg
+  | IMul Arg
   | ICmp Arg Arg
   | IXor Arg Arg
   | IAnd Arg Arg
@@ -95,8 +95,8 @@ ppInstruction = \case
     ppOp "add" dest src
   ISub dest src ->
     ppOp "sub" dest src
-  IMul dest src ->
-    ppOp "mul" dest src
+  IMul dest ->
+    "mul " <> ppArg dest
   IXor dest src ->
     ppOp "xor" dest src
   IAnd dest src ->
@@ -159,7 +159,12 @@ ppArg = \case
   Const i -> show i
   Reg r   -> ppReg r
   RegOffset reg addr ->
-    "[" <> ppReg reg <> " - 4*" <> show addr <> "]"
+    let
+      (sign, addr') =
+        if addr < 0
+          then (" + ", show (0 - addr))
+          else (" - ", show addr)
+    in "[" <> ppReg reg <> sign <> "4*" <> addr' <> "]"
   ArgTimes n arg ->
     show n <> "*" <> ppArg arg
 

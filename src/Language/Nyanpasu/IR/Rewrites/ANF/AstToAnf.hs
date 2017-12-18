@@ -30,11 +30,18 @@ runExprToANF = flip evalStateT (initState []) . exprToANF
 normalizeProgram :: Data a => AST.Program a -> Except Error (Program a)
 normalizeProgram prog = do
   let funNames = map (\name -> (name, (name, Nothing))) (AST.defNames prog)
-  defs <- forM (AST.progDefs prog) $ \case
-    AST.Fun ann name args body -> do
-      e <- evalStateT (exprToANF body) (initState funNames)
-      pure $ Fun ann (name, Nothing) args e
-  main <- flip evalStateT (initState funNames) $ exprToANF (AST.progMain prog)
+
+  (defs, main) <- flip evalStateT (initState funNames) $ do
+    funs <- forM (AST.progDefs prog) $ \case
+      AST.Fun ann name args body -> do
+        modify $ \CodeGenState{..} ->
+          let env = zip args [(-2),(-3)..]
+          in CodeGenState env 1 cgNamer cgFunctions
+        e <- exprToANF body
+        pure $ Fun ann (name, Nothing) args e
+    modify $ \CodeGenState{..} -> CodeGenState [] 1 cgNamer cgFunctions
+    main <- exprToANF (AST.progMain prog)
+    pure (funs, main)
   pure (Program defs main)
 
 -- | Algorithm to convert an `AST.Expr a` to `ANF.Expr a`

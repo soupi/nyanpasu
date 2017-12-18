@@ -3,6 +3,7 @@
 
 extern int  my_code() asm("my_code");
 extern void error()   asm("error");
+extern int print()    asm("print");
 
 const int BOOL_TAG   = 0x00000001;
 const int BOOL_TRUE  = 0x80000001;

@@ -11,13 +11,16 @@ module Language.Nyanpasu
   , interpreter
   , samples
   , x86Interpret
+  , x86InterpretExpr
   )
 where
 
 import System.IO
 import System.Exit
 import Control.Monad
+import Text.Groom
 
+import Language.Nyanpasu.Assembly.X86 (Instruction(IJmp))
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils (readFail)
 import Language.Nyanpasu.Options as Export
@@ -29,13 +32,19 @@ import qualified Language.Nyanpasu.Assembly.X86.Interpreter as X86
 run :: IO ()
 run = do
   parseArgs >>= \case
-    Compile -> do
+    CompileExpr -> do
+      compileExprX86 =<< readFail =<< getContents
+
+    CompileProgram -> do
       compileX86 =<< readFail =<< getContents
 
     Interpret -> do
       interpreter =<< readFail @(Expr ()) =<< getContents
 
     CompileAndInterpret -> do
+      interpretExprX86 =<< readFail =<< getContents
+
+    CompileAndInterpretProgram -> do
       interpretX86 =<< readFail =<< getContents
 
     Samples esc ->
@@ -54,8 +63,43 @@ run = do
                 '"' -> [ '\\', '\\', '\\', '"' ]
                 x   -> [ x ]
 
-compileX86 :: Expr () -> IO ()
-compileX86 expr =
+    SamplePrograms esc ->
+      putStrLn $ unlines $ map (escape esc . show) samplePrograms
+        where
+          escape = \case
+              Just Escape     -> concatMap go
+              Just EscapeHard -> concatMap gohard
+              Nothing    -> id
+            where
+              go = \case
+                '"' -> [ '\\', '"' ]
+                x   -> [ x ]
+
+              gohard = \case
+                '"' -> [ '\\', '\\', '\\', '"' ]
+                x   -> [ x ]
+
+
+    AnfProgram -> do
+      program <- readFail =<< getContents
+      case rewrites program of
+        Left err -> do
+          hPutStrLn stderr (displayError err)
+          exitFailure
+        Right rs ->
+          putStrLn $ groom rs
+
+compileX86 :: Program () -> IO ()
+compileX86 program =
+  case CG.compileProgram program of
+    Left err -> do
+      hPutStrLn stderr (displayError err)
+      exitFailure
+    Right rs ->
+      print rs
+
+compileExprX86 :: Expr () -> IO ()
+compileExprX86 expr =
   case CG.compileProgram (Program [] expr) of
     Left err -> do
       hPutStrLn stderr (displayError err)
@@ -65,16 +109,25 @@ compileX86 expr =
 
 interpreter :: Expr () -> IO ()
 interpreter expr =
-  case x86Interpret expr of
+  case x86InterpretExpr expr of
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
     Right rs ->
       putStrLn (show rs)
 
-interpretX86 :: Expr () -> IO ()
-interpretX86 expr =
-  case int32ToVal () =<< x86Interpret expr of
+interpretExprX86 :: Expr () -> IO ()
+interpretExprX86 expr =
+  case int32ToVal () =<< x86InterpretExpr expr of
+    Left err -> do
+      hPutStrLn stderr (displayError err)
+      exitFailure
+    Right rs ->
+      print rs
+
+interpretX86 :: Program () -> IO ()
+interpretX86 program =
+  case int32ToVal () =<< x86Interpret program of
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
@@ -82,8 +135,15 @@ interpretX86 expr =
       print rs
 
 -- | Compile and interpret an AST.Expr
-x86Interpret :: Expr () -> Either Error Int32
-x86Interpret = X86.runInterpreter <=< CG.compileProgramRaw . Program []
+x86InterpretExpr :: Expr () -> Either Error Int32
+x86InterpretExpr = X86.runInterpreter <=< CG.compileProgramRaw . Program []
+
+-- | Compile and interpret an Program
+x86Interpret :: Program () -> Either Error Int32
+x86Interpret =
+  X86.runInterpreter
+  . (IJmp ("my_code",Nothing):)
+  <=< CG.compileProgramRaw
 
 samples :: [Expr ()]
 samples =
@@ -123,3 +183,29 @@ samples =
   , eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)
   ]
 
+samplePrograms :: [Program ()]
+samplePrograms =
+  [ Program
+    [fun_ "id" ["x"] (idn_ "x")]
+    (call_ "id" [num_ 7])
+
+  , Program
+    [fun_ "double" ["x"] (add_ (idn_ "x") (idn_ "x"))]
+    (call_ "double" [num_ 7])
+
+  , Program
+    []
+    $ let_ "x" (dec_ $ num_ 1) (let_ "x" (inc_ $ inc_ $ idn_ "x") (inc_ $ idn_ "x"))
+
+  , Program
+    { progDefs =
+      [ fun_ "factorial" ["n"]
+          (if_
+            (eq_ (num_ 0) (idn_ "n"))
+            (num_ 1)
+            (mul_ (idn_ "n") (call_ "factorial" [sub_ (idn_ "n") (num_ 1)])))
+      ]
+    , progMain = call_ "factorial" [num_ 5]
+    }
+
+  ]

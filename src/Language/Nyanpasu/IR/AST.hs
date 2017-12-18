@@ -148,6 +148,12 @@ ppAtom = \case
 -- AST Helpers --
 -----------------
 
+fun_ :: Name -> [Name] -> Expr () -> Def ()
+fun_ = Fun ()
+
+call_ :: String -> [Expr ()] -> Expr ()
+call_ = Call ()
+
 let_ :: String -> Expr () -> Expr () -> Expr ()
 let_ = Let ()
 

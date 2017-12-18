@@ -29,6 +29,23 @@ run:
 	clang -g -m32 -o output/program output/main.c output/code.o &&\
 	output/program
 
+.PHONY: run-program
+
+run-program:
+	stack build --fast &&\
+	mkdir -p output &&\
+	echo "${PROGRAM}" | stack exec nyanpasu -- compile-program > output/code.asm &&\
+	cp wrapper/main.c output/main.c &&\
+	nasm -f elf32 -o output/code.o output/code.asm &&\
+	clang -g -m32 -o output/program output/main.c output/code.o &&\
+	output/program
+
+.PHONY: compile-program
+
+compile-program:
+	stack build --fast &&\
+	echo "${PROGRAM}" | stack exec nyanpasu -- compile-program
+
 .PHONY: compile
 
 compile:

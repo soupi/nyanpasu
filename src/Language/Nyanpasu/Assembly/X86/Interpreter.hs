@@ -21,6 +21,7 @@ import Language.Nyanpasu.IR.Interpreter (int32ToVal)
 import Language.Nyanpasu.Assembly.X86
 
 import Text.Groom
+import Debug.Trace
 
 -- | Representation of the machine state
 data Machine = Machine
@@ -54,6 +55,10 @@ initInsts = M.fromList
   , ( ("error_not_number", Nothing)
     , [ IPush (Const 1)
       , ICall ("error", Nothing)
+      ]
+    )
+  , ( ("print", Nothing)
+    , [ ICall ("print", Nothing)
       ]
     )
   , ( ("call", defLabelId)
@@ -146,7 +151,7 @@ interpreterStep m insts = \case
       IMov a1 a2 -> binModSrc (pure .* const id) a1 a2
       IAdd a1 a2 -> binModSrc (pure .* (+)) a1 a2
       ISub a1 a2 -> binModSrc (pure .* (-)) a1 a2
-      IMul a1 a2 -> binModSrc (pure .* (*)) a1 a2
+      IMul a1    -> binModSrc (pure .* (*)) (Reg EAX) a1
       IAnd a1 a2 -> binModSrc (pure .* (.&.)) a1 a2
       IXor a1 a2 -> binModSrc (pure .* xor) a1 a2
       IOr  a1 a2 -> binModSrc (pure .* (.|.)) a1 a2
@@ -220,10 +225,17 @@ interpreterStep m insts = \case
           Right v
             | errCode == 1 -> "Type Error: Expected a number but got: " ++ show v
             | errCode == 2 -> "Type Error: Expected a boolean but got: " ++ show v
-          _ -> "Unknown arguments to error: errCode = " ++ show errCode ++ ", val = " ++ show val
-
+          _ -> unlines $
+            [ "Unknown arguments to error: errCode = " ++ show errCode ++ ", val = " ++ show val
+            , show m
+            ]
 
       _ -> throwErr $ "Unexpected instruction: " <> groom inst
+
+      ICall ("print", Nothing) -> do
+        rv <- maybe (throwErr "Could not find variable ESP") (pure . (+1)) $ M.lookup ESP (regs m)
+        let val = (stack m V.! fromIntegral rv)
+        traceShowId val `seq` interpreterStep m insts (IMov (Reg EAX) (Const val) : IRet : next)
 
     where
       binModSrc f a1 a2 = do

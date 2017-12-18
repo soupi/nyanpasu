@@ -11,7 +11,7 @@ import Text.Groom
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.IR.AST (Expr, Atom)
 import qualified Language.Nyanpasu.IR.Interpreter as IR
-import Language.Nyanpasu (x86Interpret)
+import Language.Nyanpasu (x86InterpretExpr)
 
 assertEq :: (Eq a, Show a) => (a, a) -> Assertion
 assertEq (x,y) =
@@ -40,4 +40,4 @@ x @=? y = assertEq (x,y)
 compareProgram ::
   (Either Error (Atom ()) -> Either Error (Atom ()) -> t) -> Expr () -> t
 compareProgram cmp e =
-  (IR.int32ToVal () =<< x86Interpret e) `cmp` IR.interpret e
+  (IR.int32ToVal () =<< x86InterpretExpr e) `cmp` IR.interpret e

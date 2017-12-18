@@ -19,6 +19,7 @@ import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
 
+import Text.Groom
 
 ---------------------
 -- Code Generation --
@@ -42,6 +43,7 @@ compileProgram program = do
         [ "section .text"
         , "global my_code"
         , "extern error"
+        , "extern print"
         ]
 
     suffix =
@@ -55,12 +57,14 @@ compileProgram program = do
 -- | Compile an expression and output a assembly list of instructions
 compileProgramRaw :: AST.Program () -> Either Error [Instruction]
 compileProgramRaw program = do
-  unless (null $ AST.progDefs program) $
-    throwErr "Function definitions not yet supported"
   prog'@Program{ progMain } <- rewrites program
   let funLabels = map (\lbl@(name, _) -> (name, lbl)) (defLabels prog')
-  insts <- runExcept . flip evalStateT (initState funLabels) $ compileExpr progMain
-  pure (Label ("my_code", Nothing) : withStackFrame progMain insts)
+  runExcept . flip evalStateT (initState funLabels) $ do
+    funs <- mapM (pure . (EmptyInst:) <=< compileDef) (progDefs prog')
+    modify $ \CodeGenState{..} -> CodeGenState [] 1 cgNamer cgFunctions
+    main <- compileExpr progMain
+    let main' = EmptyInst : Label ("my_code", Nothing) : withStackFrame progMain main
+    pure (concat funs ++ main')
 
 
 -- | Compile an expression to a list of instructions
@@ -86,7 +90,6 @@ compileExpr = \case
     pure $
       [ IMov (Reg EAX) im1 ]
       <> compileBinOp op im2
-
 
   Let _ addr binder body -> do
     asm <- concat <$> sequence
@@ -116,9 +119,9 @@ compileExpr = \case
      ]
 
   Call _ lbl args -> do
-    pushArgs' <- mapM (pure . IPush <=< compileAtom) args
+    pushArgs' <- mapM (pure . (\(setup, arg) -> setup ++ [IPush arg]) . compileArg <=< compileAtom) args
     -- in this calling convention we push arguments in reverse
-    pure $ reverse $ ICall lbl : pushArgs'
+    pure $ concat $ reverse $ [ICall lbl] : pushArgs'
 
 -- | Compile an immediate value to an x86 argument
 compileAtom :: Atom a -> CodeGen ann Arg
@@ -156,14 +159,19 @@ compileOp = \case
 --   The result will be in EAX.
 --
 compileBinOp :: PrimBinOp -> Arg -> [Instruction]
-compileBinOp op_ arg2 = case op_ of
+compileBinOp op_ arg2@(compileArg -> (setup, arg2')) = case op_ of
   NumBinOp op -> checkNum (Reg EAX) ++ checkNum arg2 ++ case op of
-    Add -> [ IAdd (Reg EAX) arg2 ]
+    Add ->
+      setup ++
+      [ IAdd (Reg EAX) arg2'
+      ]
     Sub ->
-      [ ISub (Reg EAX) arg2
+      setup ++
+      [ ISub (Reg EAX) arg2'
       ]
     Mul ->
-      [ IMul (Reg EAX) arg2
+      setup ++
+      [ IMul arg2'
       , ISar (Reg EAX) (Const 1)
       ]
 
@@ -229,10 +237,20 @@ compileBinOp op_ arg2 = case op_ of
       , IOr  (Reg EAX) (Const boolTag)
       ]
 
+
+-- | Compile a function definition
+compileDef :: Def Int32 -> CodeGen ann [Instruction]
+compileDef (Fun _ lbl args body) = do
+  modify $ \CodeGenState{..} ->
+    let env = zip args [(-2),(-3)..]
+    in CodeGenState env 1 cgNamer cgFunctions
+  (Label lbl :) . withStackFrame body <$> compileExpr body
+
 allocateStackFrame :: Expr Int32 -> [Instruction]
 allocateStackFrame expr =
   [ IPush (Reg EBP)
   , IMov (Reg EBP) (Reg ESP)
+  --, ISub (Reg ESP) (ArgTimes 4 (Const $ traceShow (countVars expr, expr) $ countVars expr))
   , ISub (Reg ESP) (ArgTimes 4 (Const $ countVars expr))
   ]
 
@@ -266,20 +284,42 @@ errorNotBool =
   ]
 
 checkNum :: Arg -> [Instruction]
-checkNum arg =
-  [ IPush arg
-  , ITest arg (Const boolTag)
-  , IJnz ("error_not_number", Nothing)
-  , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
-  ]
+checkNum = \case
+  Const i | i `mod` 2 == 0 -> []
+  Const other ->
+    [ IPush (Const other)
+    , IJmp ("error_not_number", Nothing)
+    ]
+  (compileArg -> (setup, arg)) ->
+    setup ++
+    [ IPush arg
+    , ITest arg (Const boolTag)
+    , IJnz ("error_not_number", Nothing)
+    , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
+    ]
 
 checkBool :: Arg -> [Instruction]
-checkBool arg =
-  [ IPush arg
-  , ITest arg (Const boolTag)
-  , IJz ("error_not_bool", Nothing)
-  , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
-  ]
+checkBool = \case
+  Const b | b `elem` [trueValue, falseValue] -> []
+  Const other ->
+    [ IPush (Const other)
+    , IJmp ("error_not_bool", Nothing)
+    ]
+  (compileArg -> (setup, arg)) ->
+    setup ++
+    [ IPush arg
+    , ITest arg (Const boolTag)
+    , IJz ("error_not_bool", Nothing)
+    , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
+    ]
+
+compileArg :: Arg -> ([Instruction], Arg)
+compileArg arg = case arg of
+  RegOffset _ _ -> (, Reg EDX)
+    [ IMov (Reg EDX) arg
+    ]
+  _ ->
+    ([], arg)
 
 ---------------
 -- Constants --
