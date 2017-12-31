@@ -43,6 +43,7 @@ data Expr a
   | Let a Name (Expr a) (Expr a)
   | If a (Expr a) (Expr a) (Expr a)
   | Call a Name [Expr a]
+  | CCall a Name [Expr a]
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 
@@ -138,6 +139,7 @@ instance Annotated Expr where
     Let _ name bind body -> Let ann name bind body
     If _ test falseBranch trueBranch -> If ann test falseBranch trueBranch
     Call _ fun args -> Call ann fun args
+    CCall _ fun args -> CCall ann fun args
 
 ppAtom :: Atom a -> String
 ppAtom = \case
@@ -153,6 +155,9 @@ fun_ = Fun ()
 
 call_ :: String -> [Expr ()] -> Expr ()
 call_ = Call ()
+
+ccall_ :: String -> [Expr ()] -> Expr ()
+ccall_ = CCall ()
 
 let_ :: String -> Expr () -> Expr () -> Expr ()
 let_ = Let ()

@@ -20,6 +20,7 @@ import System.Exit
 import Control.Monad
 import Text.Groom
 
+import Language.Nyanpasu.Samples
 import Language.Nyanpasu.Assembly.X86 (Instruction(IJmp))
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils (readFail)
@@ -144,98 +145,3 @@ x86Interpret =
   X86.runInterpreter
   . (IJmp ("my_code",Nothing):)
   <=< CG.compileProgramRaw
-
-samples :: [Expr ()]
-samples =
-  [ num_ 7
-  , inc_ $ dec_ $ dec_ $ inc_ $ dec_ $ inc_ $ inc_ $ num_ 7
-  , let_ "x" (dec_ $ num_ 1) (idn_ "x")
-  , let_ "x" (dec_ $ num_ 1) (let_ "x" (inc_ $ inc_ $ idn_ "x") (inc_ $ idn_ "x"))
-  , let_
-      "a"
-      (num_ 10)
-      $ let_
-          "c"
-          (let_
-            "b"
-            (inc_ $ idn_ "a")
-            (let_
-              "d"
-              (inc_ $ idn_ "b")
-              (inc_ $ idn_ "b")
-            )
-          )
-        (inc_ $ idn_ "c")
-  , let_
-      "a"
-      true_
-      $ if_
-        (idn_ "a")
-        (if_ false_ (num_ 5) (num_ 7))
-        (num_ 0)
-  , add_ (num_ 7) (num_ 10)
-  , eq_ (add_ (num_ 7) (num_ 10)) (num_ 17)
-  , less_ (add_ (num_ 7) (num_ 10)) (num_ 17)
-  , less_ (add_ (num_ 8) (num_ 10)) (num_ 17)
-  , if_ (less_ (add_ (num_ 8) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
-  , if_ (eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
-  , if_ (eq_ (add_ (num_ 7) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
-  , eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)
-  ]
-
-samplePrograms :: [Program ()]
-samplePrograms =
-  [ Program
-    [fun_ "id" ["x"] (idn_ "x")]
-    (call_ "id" [num_ 7])
-
-  , Program
-    [fun_ "double" ["x"] (add_ (idn_ "x") (idn_ "x"))]
-    (call_ "double" [num_ 7])
-
-  , Program
-    []
-    $ let_ "x" (dec_ $ num_ 1) (let_ "x" (inc_ $ inc_ $ idn_ "x") (inc_ $ idn_ "x"))
-
-  , Program
-    { progDefs =
-      [ fun_ "factorial" ["n"]
-          (if_
-            (eq_ (num_ 0) (idn_ "n"))
-            (num_ 1)
-            (mul_ (idn_ "n") (call_ "factorial" [sub_ (idn_ "n") (num_ 1)])))
-      ]
-    , progMain = call_ "factorial" [num_ 5]
-    }
-
-  , Program
-    { progDefs =
-      [ fun_ "factorial" ["acc", "n"]
-          (if_
-            (eq_ (num_ 0) (idn_ "n"))
-            (idn_ "acc")
-            (call_ "factorial" [mul_ (idn_ "acc") (idn_ "n"), sub_ (idn_ "n") (num_ 1)]))
-      ]
-    , progMain = call_ "factorial" [num_ 1, num_ 5]
-    }
-
-  , Program [] $ call_ "print" [num_ 7]
-
-  , Program
-    { progDefs =
-      [ fun_ "even" ["n"]
-          (if_
-            (eq_ (num_ 0) (idn_ "n"))
-            true_
-            (call_ "odd" [sub_ (idn_ "n") (num_ 1)]))
-
-      , fun_ "odd" ["n"]
-          (if_
-            (eq_ (num_ 0) (idn_ "n"))
-            false_
-            (call_ "even" [sub_ (idn_ "n") (num_ 1)]))
-      ]
-    , progMain = call_ "even" [num_ 51]
-    }
-
-  ]

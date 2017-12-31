@@ -19,7 +19,7 @@ import Data.Monoid
 import Control.Monad.State
 import Control.Monad.Except
 
-import Text.Groom
+-- import Text.Groom
 
 ---------------------
 -- Code Generation --
@@ -63,7 +63,7 @@ compileProgramRaw program = do
     funs <- mapM (pure . (EmptyInst:) <=< compileDef) (progDefs prog')
     modify $ \CodeGenState{..} -> CodeGenState [] 1 cgNamer cgFunctions
     main <- compileExpr progMain
-    let main' = EmptyInst : Label ("my_code", Nothing) : withStackFrame progMain main
+    let main' = EmptyInst : Label ("my_code", Nothing) : withStackFrame 0 progMain main
     pure (concat funs ++ main')
 
 
@@ -118,10 +118,31 @@ compileExpr = \case
      ,  [ Label ("if_done", Just path) ]
      ]
 
+  CCall _ lbl args -> do
+    pushArgs' <- mapM (pure . (\(setup, arg) -> setup ++ [IPush arg]) . compileArg <=< compileAtom) args
+    -- in this calling convention we push arguments in reverse
+    pure $ concat (reverse pushArgs') ++ [ICall lbl, ISub (Reg ESP) (ArgTimes 4 (Const $ fromIntegral $ length args))]
+
   Call _ lbl args -> do
     pushArgs' <- mapM (pure . (\(setup, arg) -> setup ++ [IPush arg]) . compileArg <=< compileAtom) args
     -- in this calling convention we push arguments in reverse
-    pure $ concat $ reverse $ [ICall lbl] : pushArgs'
+    pure $ concat (reverse pushArgs') ++ [ICall lbl]
+
+  TailCall _ lbl argsSpace args -> do
+    let argsSize = fromIntegral (length args)
+    pushArgs' <- mapM (pure . (\(setup, arg) -> setup ++ [IPush arg]) . compileArg <=< compileAtom) args
+    pure $
+         [EmptyInst]
+      ++ [ISub (Reg ESP) (ArgTimes 4 (Const $ argsSize - argsSpace)) | argsSize > argsSpace]      -- padding
+      ++ [IMov (Reg EDX) (RegOffset EBP 0), IPush (Reg EDX)]                                      -- save saved EBP
+      ++ [IMov (Reg EDX) (RegOffset EBP (-1)), IPush (Reg EDX)]                                   -- save saved return address
+      ++ concat pushArgs'                                                                         -- push arguments
+      ++ [IMov (Reg ECX) (Reg EBP), IAdd (Reg ECX) (ArgTimes 4 (Const $ 1 + argsSpace))]          -- point to start of arguments
+      ++ concatMap (\i -> [IPop (Reg EAX), IMov (RegOffset ECX i) (Reg EAX)]) [0..argsSize]       -- setup args
+      ++ [IPop (Reg EAX), IMov (RegOffset ECX (argsSize + 1)) (Reg EAX)]                          -- save old return address
+      ++ [ISub (Reg ECX) (ArgTimes 4 (Const $ 1 + argsSize)), IMov (Reg ESP) (Reg ECX)]           -- set ESP to point to current EBP
+      ++ [IPop (Reg EBP)]                                                                         -- set EBP to old EBP
+      ++ [IJmp lbl]                                                                               -- jump to function
 
 -- | Compile an immediate value to an x86 argument
 compileAtom :: Atom a -> CodeGen ann Arg
@@ -244,26 +265,28 @@ compileDef (Fun _ lbl args body) = do
   modify $ \CodeGenState{..} ->
     let env = zip args [(-2),(-3)..]
     in CodeGenState env 1 cgNamer cgFunctions
-  (Label lbl :) . withStackFrame body <$> compileExpr body
+  (Label lbl :) . withStackFrame (fromIntegral $ length args) body <$> compileExpr body
 
 allocateStackFrame :: Expr Int32 -> [Instruction]
 allocateStackFrame expr =
   [ IPush (Reg EBP)
   , IMov (Reg EBP) (Reg ESP)
-  --, ISub (Reg ESP) (ArgTimes 4 (Const $ traceShow (countVars expr, expr) $ countVars expr))
   , ISub (Reg ESP) (ArgTimes 4 (Const $ countVars expr))
   ]
 
-deallocateStackFrame :: [Instruction]
-deallocateStackFrame =
+deallocateStackFrame :: Int32 -> [Instruction]
+deallocateStackFrame argsSpace =
   [ IMov (Reg ESP) (Reg EBP)
   , IPop (Reg EBP)
+  , IPop (Reg EDX)                                           -- save return address
+  , IAdd (Reg ESP) (ArgTimes 4 (Const argsSpace))            -- remove arguments
+  , IPush (Reg EDX)                                          -- push return address for Ret to work
   , IRet
   ]
 
-withStackFrame :: Expr Int32 -> [Instruction] -> [Instruction]
-withStackFrame expr insts =
-  allocateStackFrame expr ++ [EmptyInst] ++ insts ++  [EmptyInst] ++ deallocateStackFrame
+withStackFrame :: Int32 -> Expr Int32 -> [Instruction] -> [Instruction]
+withStackFrame argsSpace expr insts =
+  allocateStackFrame expr ++ [EmptyInst] ++ insts ++  [EmptyInst] ++ deallocateStackFrame argsSpace
 
 ------------
 -- Errors --

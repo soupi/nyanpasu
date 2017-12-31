@@ -1,4 +1,4 @@
-{- | Utilites for code generation. Also includes the AST -> ANF algorithm
+{- | AST -> ANF algorithm
 
 -}
 
@@ -125,17 +125,24 @@ exprToANF = \case
 
   -- All arguments must be converted to be immediate
   AST.Call a funcName exprs -> do
-    results <- forM exprs $ \e -> do
-      e' <- exprToANF e
-      case getAtom e' of
-        Just res -> pure ((id, res), False)
-        Nothing  -> do
-          addr <- insertNamer
-          pure ((Let (getAnn e') addr e', Idn (getAnn e') addr), True)
+    handleCall Call a funcName exprs
 
-    sequence_ [ popVar | (_, True) <- results ]
+  AST.CCall a funcName exprs -> do
+    handleCall CCall a funcName exprs
 
-    pure $
-      foldl' (flip (.)) id (map (fst . fst) results) $
-        Call a (funcName, Nothing) (map (snd . fst) results)
+  where
+    handleCall constr a funcName exprs = do
+      results <- forM exprs $ \e -> do
+        e' <- exprToANF e
+        case getAtom e' of
+          Just res -> pure ((id, res), False)
+          Nothing  -> do
+            addr <- insertNamer
+            pure ((Let (getAnn e') addr e', Idn (getAnn e') addr), True)
+
+      sequence_ [ popVar | (_, True) <- results ]
+
+      pure $
+        foldl' (flip (.)) id (map (fst . fst) results) $
+          constr a (funcName, Nothing) (map (snd . fst) results)
 

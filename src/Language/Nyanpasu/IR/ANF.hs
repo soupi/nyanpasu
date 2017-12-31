@@ -27,6 +27,9 @@ module Language.Nyanpasu.IR.ANF
   , Address
   , Def(..)
   , Program(..)
+  , mapExprDef
+  , mapExprProgram
+  , mapExprDefs
   , getAnn
   , setAnn
   , getAtom
@@ -66,6 +69,8 @@ data Expr a
   | Let a Address (Expr a) (Expr a)
   | If a (Atom a) (Expr a) (Expr a)
   | Call a Label [Atom a]
+  | CCall a Label [Atom a]
+  | TailCall a Label Int32 [Atom a]
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | An immediate value
@@ -84,8 +89,18 @@ type Address = Int32
 -- | A definition of a function or value
 --
 data Def a
-  = Fun a Label [Name] (Expr a)
+  = Fun
+    a         -- Annotation
+    Label     -- Function name/label
+    [Name]    -- arguments
+    (Expr a)  -- Body
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
+mapExprDef :: (Expr a -> Expr a) -> Def a -> Def a
+mapExprDef f = \case
+  Fun a name args body ->
+    Fun a name args (f body)
+
 
 -- | The Program type
 --   Represents a sequence of expressions
@@ -96,6 +111,19 @@ data Program a = Program
   }
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
+mapExprProgram :: (Expr a -> Expr a) -> Program a -> Program a
+mapExprProgram f prog =
+  Program
+    { progDefs = mapExprDef f <$> progDefs prog
+    , progMain = f (progMain prog)
+    }
+
+mapExprDefs :: (Expr a -> Expr a) -> Program a -> Program a
+mapExprDefs f prog =
+  Program
+    { progDefs = mapExprDef f <$> progDefs prog
+    , progMain = progMain prog
+    }
 
 ---------------------
 -- Class Instances --
@@ -125,6 +153,8 @@ instance Annotated Expr where
     Let _ name bind body -> Let ann name bind body
     If _ test falseBranch trueBranch -> If ann test falseBranch trueBranch
     Call _ fun args -> Call ann fun args
+    CCall _ fun args -> CCall ann fun args
+    TailCall _ fun callSpace args -> TailCall ann fun callSpace args
 
 -----------------
 -- Annotations --
