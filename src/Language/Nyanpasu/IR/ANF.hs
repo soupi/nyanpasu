@@ -41,6 +41,7 @@ import Language.Nyanpasu.IR.AST as Export
   ( PrimOp(..)
   , NumOp(..)
   , BoolOp(..)
+  , PairOp(..)
   , PrimBinOp(..)
   , NumBinOp(..)
   , BoolBinOp(..)
@@ -64,6 +65,7 @@ import Language.Nyanpasu.Assembly.X86 (Label)
 --
 data Expr a
   = Atom (Atom a)
+  | MkPair a (Atom a) (Atom a)
   | PrimOp a PrimOp (Atom a)
   | PrimBinOp a PrimBinOp (Atom a) (Atom a)
   | Let a Address (Expr a) (Expr a)
@@ -148,6 +150,7 @@ instance Annotated Expr where
   setAnn :: a -> Expr a -> Expr a
   setAnn ann = \case
     Atom a -> Atom (setAnn ann a)
+    MkPair _ e1 e2 -> MkPair ann e1 e2
     PrimOp _ op e -> PrimOp ann op e
     PrimBinOp _ op e1 e2 -> PrimBinOp ann op e1 e2
     Let _ name bind body -> Let ann name bind body

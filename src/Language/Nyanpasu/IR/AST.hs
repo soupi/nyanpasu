@@ -1,10 +1,8 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE DeriveFoldable #-}
 {- | Definition of the low-level IR for the compiler
 -}
 
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DeriveDataTypeable, DeriveTraversable, DeriveFoldable #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Language.Nyanpasu.IR.AST where
 
@@ -40,6 +38,7 @@ data Expr a
   | PrimOp a PrimOp (Expr a)
   | PrimBinOp a PrimBinOp (Expr a) (Expr a)
   | Idn a Name
+  | MkPair a (Expr a) (Expr a)
   | Let a Name (Expr a) (Expr a)
   | If a (Expr a) (Expr a) (Expr a)
   | Call a Name [Expr a]
@@ -69,6 +68,7 @@ data Program a = Program
 data PrimOp
   = NumOp NumOp
   | BoolOp BoolOp
+  | PairOp PairOp
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
 -- | Unary num operation
@@ -111,6 +111,12 @@ data BoolBinOp
   | Xor
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
+-- | Operations on two numbers
+data PairOp
+  = First
+  | Second
+  deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
+
 -----------------
 -- Annotations --
 -----------------
@@ -140,6 +146,7 @@ instance Annotated Expr where
     If _ test falseBranch trueBranch -> If ann test falseBranch trueBranch
     Call _ fun args -> Call ann fun args
     CCall _ fun args -> CCall ann fun args
+    MkPair _ e1 e2 -> MkPair ann e1 e2
 
 ppAtom :: Atom a -> String
 ppAtom = \case
@@ -170,6 +177,9 @@ idn_ = Idn ()
 
 num_ :: Int32 -> Expr ()
 num_ = Atom . Num ()
+
+pair_ :: Expr () -> Expr () -> Expr ()
+pair_ = MkPair ()
 
 inc_ :: Expr () -> Expr ()
 inc_ = PrimOp () (NumOp Inc)
@@ -218,6 +228,12 @@ greater_ = PrimBinOp () (NumBinOp Greater)
 
 greaterEq_ :: Expr () -> Expr () -> Expr ()
 greaterEq_ = PrimBinOp () (NumBinOp GreaterEq)
+
+fst_ :: Expr () -> Expr ()
+fst_ = PrimOp () (PairOp First)
+
+snd_ :: Expr () -> Expr ()
+snd_ = PrimOp () (PairOp Second)
 
 defNames :: Program a -> [Name]
 defNames prog = flip map (progDefs prog) $ \case

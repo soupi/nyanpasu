@@ -15,7 +15,8 @@ import qualified Language.Nyanpasu.IR.AST as AST
 
 import Data.Bits
 import Data.Bool
-import Data.Monoid
+import Data.List
+import Data.Monoid ((<>))
 import Control.Monad.State
 import Control.Monad.Except
 
@@ -52,7 +53,12 @@ compileProgram program = do
         , "ret"
         ]
 
-    errors = ppAsm (errorNotNumber ++ errorNotBool)
+    errors = ppAsm . intercalate [EmptyInst] $
+      [ errorNotNumber
+      , errorNotBool
+      , errorNotPair
+      , errorNotEnoughMem
+      ]
 
 -- | Compile an expression and output a assembly list of instructions
 compileProgramRaw :: AST.Program () -> Either Error [Instruction]
@@ -63,7 +69,14 @@ compileProgramRaw program = do
     funs <- mapM (pure . (EmptyInst:) <=< compileDef) (progDefs prog')
     modify $ \CodeGenState{..} -> CodeGenState [] 1 cgNamer cgFunctions
     main <- compileExpr progMain
-    let main' = EmptyInst : Label ("my_code", Nothing) : withStackFrame 0 progMain main
+    let
+      main' =
+        EmptyInst
+          : Label ("my_code", Nothing)
+          : withStackFrame 0 progMain
+            ( IMov (Reg ESI) (RegOffset EBP (-2)) -- put heap pointer in ESI
+            : main
+            )
     pure (concat funs ++ main')
 
 
@@ -77,6 +90,28 @@ compileExpr = \case
     _ -> do
       res <- compileAtom atom
       pure [ IMov (Reg EAX) res ]
+
+  MkPair _ a1 a2 -> do
+    im1 <- compileAtom a1
+    im2 <- compileAtom a2
+    pure $
+      [ ICmp (Reg ESI) (Const heapSize)
+      , IJge ("error_not_enough_memory", Nothing)
+
+      , IMov (Reg EBX) im1
+      , IMov (Reg ECX) im2
+
+      , IMov (Reg EAX) (Reg ESI)
+      , IAdd (Reg EAX) (Const pairTag)
+
+      , IMov (Reg EBX) im1
+      , IMov (RegRef ESI) (Reg EBX)
+      , IAdd (Reg ESI) (Const 4)
+
+      , IMov (Reg EBX) im2
+      , IMov (RegRef ESI) (Reg EBX)
+      , IAdd (Reg ESI) (Const 4)
+      ]
 
   PrimOp _ op a -> do
     im <- compileAtom a
@@ -172,6 +207,17 @@ compileOp = \case
     checkBool (Reg EAX) ++
     case op of
       Not -> [IXor (Reg EAX) (Const trueTag)]
+
+  PairOp op ->
+    checkPair (Reg EAX) ++ [ISub (Reg EAX) (Const pairTag)] ++
+    case op of
+      First ->
+        [ IMov (Reg EAX) (RegRef EAX)
+        ]
+      Second ->
+        [ IAdd (Reg EAX) (Const 4)
+        , IMov (Reg EAX) (RegRef EAX)
+        ]
 
 -- | Compile a PrimBinOp and two Args,
 --   where the first is in EAX and the other is passed to the function,
@@ -306,6 +352,21 @@ errorNotBool =
   , ICall ("error", Nothing)
   ]
 
+errorNotPair :: [Instruction]
+errorNotPair =
+  [ Label ("error_not_pair", Nothing)
+  , IPush (Const 3)
+  , ICall ("error", Nothing)
+  ]
+
+errorNotEnoughMem :: [Instruction]
+errorNotEnoughMem =
+  [ Label ("error_not_enough_memory", Nothing)
+  , IPush (Reg ESI)
+  , IPush (Const 17)
+  , ICall ("error", Nothing)
+  ]
+
 checkNum :: Arg -> [Instruction]
 checkNum = \case
   Const i | i `mod` 2 == 0 -> []
@@ -336,6 +397,21 @@ checkBool = \case
     , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
     ]
 
+checkPair :: Arg -> [Instruction]
+checkPair = \case
+  Const b | b `mod` 8 == 7 -> []
+  Const other ->
+    [ IPush (Const other)
+    , IJmp ("error_not_pair", Nothing)
+    ]
+  (compileArg -> (setup, arg)) ->
+    setup ++
+    [ IPush arg
+    , ITest arg (Const pairTag)
+    , IJz ("error_not_pair", Nothing)
+    , IAdd (Reg ESP) (ArgTimes 4 (Const 1))
+    ]
+
 compileArg :: Arg -> ([Instruction], Arg)
 compileArg arg = case arg of
   RegOffset _ _ -> (, Reg EDX)
@@ -347,6 +423,10 @@ compileArg arg = case arg of
 ---------------
 -- Constants --
 ---------------
+
+
+pairTag :: Int32
+pairTag = 7
 
 boolTag :: Int32
 boolTag = 0x1
@@ -362,3 +442,13 @@ trueTag = -2147483648
 
 defLabelId :: Maybe Int32
 defLabelId = Just (-1)
+
+heapSize :: Int32
+heapSize = 1024*1024
+
+printReg :: Reg -> [Instruction]
+printReg reg =
+  [ IPush (Reg reg)
+  , ICall ("print", Nothing)
+  , IPop (Reg reg)
+  ]

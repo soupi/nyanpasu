@@ -135,4 +135,9 @@ samplePrograms =
       ]
     , progMain = call_ "id1" [num_ 51]
     }
+
+  , Program [] $ pair_ (num_ 1) (num_ 2)
+  , Program [] $ snd_ $ pair_ (num_ 1) (num_ 2)
+  , Program [] $ pair_ (num_ 1) $ pair_ (num_ 2) (num_ 3)
+  , Program [] $ fst_ $ snd_ $ pair_ (num_ 1) $ pair_ (num_ 2) (num_ 3)
   ]

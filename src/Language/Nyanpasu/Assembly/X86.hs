@@ -41,6 +41,7 @@ data Instruction
   | IJe   Label
   | IJnz  Label
   | IJz   Label
+  | IJge  Label
   | Label Label
   | ICall Label
   | IRet
@@ -57,6 +58,8 @@ data Arg
   = Const Int32
   | Reg Reg
   | RegOffset Reg Int32
+  | RawRegOffset Reg Int32
+  | RegRef Reg
   | ArgTimes Int32 Arg
   deriving (Show, Read, Eq, Ord, Data, Typeable, Generic, NFData)
 
@@ -69,6 +72,7 @@ data Reg
   | EDX
   | ESP
   | EBP
+  | ESI
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 -- | Output
@@ -123,6 +127,8 @@ ppInstruction = \case
     "jnz " <> ppLabel lbl
   IJz lbl ->
     "jz " <> ppLabel lbl
+  IJge lbl ->
+    "jge " <> ppLabel lbl
   Label lbl ->
     ppLabel lbl <> ":"
   IRet ->
@@ -165,6 +171,15 @@ ppArg = \case
           then (" + ", show (0 - addr))
           else (" - ", show addr)
     in "[" <> ppReg reg <> sign <> "4*" <> addr' <> "]"
+  RawRegOffset reg addr ->
+    let
+      (sign, addr') =
+        if addr < 0
+          then (" + ", show (0 - addr))
+          else (" - ", show addr)
+    in "[" <> ppReg reg <> sign <> addr' <> "]"
+  RegRef reg ->
+    "[" <> ppReg reg <> "]"
   ArgTimes n arg ->
     show n <> "*" <> ppArg arg
 

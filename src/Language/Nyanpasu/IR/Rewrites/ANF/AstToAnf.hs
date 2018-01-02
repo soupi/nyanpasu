@@ -98,30 +98,14 @@ exprToANF = \case
     true'  <- exprToANF true
     false' <- exprToANF false
     pure $ iff true' false'
-   
+
   -- Both arguments must be converted to be immediate
-  AST.PrimBinOp a op e1 e2 -> do
-    e1' <- exprToANF e1
-    (let1, idn1, pop1) <-
-        case getAtom e1' of
-          Just res -> pure (id, res, False)
-          Nothing  -> do
-            addr1 <- insertNamer
-            pure (Let (getAnn e1') addr1 e1', Idn (getAnn e1') addr1, True)
+  AST.MkPair a e1 e2 ->
+    anfTwoExprs (MkPair a) e1 e2
 
-    e2' <- exprToANF e2
-    (let2, idn2, pop2) <-
-        case getAtom e2' of
-          Just res -> pure (id, res, False)
-          Nothing  -> do
-            addr2 <- insertNamer
-            pure (Let (getAnn e2') addr2 e2', Idn (getAnn e2') addr2, True)
-
-    sequence_ [ popVar | p <- [pop1, pop2], p ]
-
-    pure $
-      let1 $ let2 $
-        PrimBinOp a op idn1 idn2
+  -- Both arguments must be converted to be immediate
+  AST.PrimBinOp a op e1 e2 ->
+    anfTwoExprs (PrimBinOp a op) e1 e2
 
   -- All arguments must be converted to be immediate
   AST.Call a funcName exprs -> do
@@ -146,3 +130,25 @@ exprToANF = \case
         foldl' (flip (.)) id (map (fst . fst) results) $
           constr a (funcName, Nothing) (map (snd . fst) results)
 
+    anfTwoExprs constr e1 e2 = do
+      e1' <- exprToANF e1
+      (let1, idn1, pop1) <-
+          case getAtom e1' of
+            Just res -> pure (id, res, False)
+            Nothing  -> do
+              addr1 <- insertNamer
+              pure (Let (getAnn e1') addr1 e1', Idn (getAnn e1') addr1, True)
+
+      e2' <- exprToANF e2
+      (let2, idn2, pop2) <-
+          case getAtom e2' of
+            Just res -> pure (id, res, False)
+            Nothing  -> do
+              addr2 <- insertNamer
+              pure (Let (getAnn e2') addr2 e2', Idn (getAnn e2') addr2, True)
+
+      sequence_ [ popVar | p <- [pop1, pop2], p ]
+
+      pure $
+        let1 $ let2 $
+          constr idn1 idn2
