@@ -1,13 +1,13 @@
 name:                nyanpasu
 version:             0.1.0.0
-synopsis:            Working through CS4410/6410
+synopsis:            Building a compiler incrementally. Working through CS4410/6410 and CS75
 description:         Please see README.md
 homepage:            https://gitlab.com/gilmi/nyanpasu
 license:             BSD3
 license-file:        LICENSE
 author:              Gil Mizrahi
 maintainer:          gilmi@posteo.net
-copyright:           2017 Gil Mizrahi
+copyright:           2018 Gil Mizrahi
 category:            Compiler
 build-type:          Simple
 extra-source-files:  README.md
