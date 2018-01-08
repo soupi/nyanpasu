@@ -11,12 +11,14 @@ import GHC.Generics
 import Control.DeepSeq
 import Control.Monad.Except
 import Text.Groom (groom)
+import qualified Language.X86 as X86
 
 import Language.Nyanpasu.IR.AST (Atom(..), TypeError(..), Expr(..), ppAtom)
 
 data Error
   = Error String
   | TError TypeError (Atom String) (Expr String)
+  | AsmError X86.Error
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 throwErr :: MonadError Error m => String -> m a

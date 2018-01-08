@@ -3,7 +3,8 @@ resolver: lts-10.0
 packages:
 - '.'
 
-extra-deps: []
+extra-deps:
+- archive: https://github.com/soupi/x86-debug/archive/6356ece48dace5ac6c5dce010279c6d92063d41c.zip
 
 flags: {}
 

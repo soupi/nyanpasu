@@ -9,14 +9,14 @@ import Control.Monad
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.IR.AST
 import qualified Language.Nyanpasu.IR.Interpreter as IR
-import Language.Nyanpasu (x86InterpretExpr)
+import Language.Nyanpasu (x86InterpretExpr, getResult)
 
 tests :: TestTree
 tests =
   testGroup "Interpreter" $
     mconcat
       [ zipWith (\n t -> testCase ("IR.Interpreter " ++ show n) t) [1..] (inter IR.interpret)
-      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (IR.int32ToVal () <=< x86InterpretExpr))
+      , zipWith (\n t -> testCase ("X86.Interpreter " ++ show n) t) [1..] (inter (getResult <=< x86InterpretExpr))
       ]
 
 inter :: (Expr () -> Either Error (Atom ())) -> [Assertion]

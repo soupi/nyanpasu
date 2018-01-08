@@ -24,7 +24,7 @@ module Language.Nyanpasu.IR.ANF
   ( module Export
   , Expr(..)
   , Atom(..)
-  , Address
+  , Offset
   , Def(..)
   , Program(..)
   , mapExprDef
@@ -34,6 +34,7 @@ module Language.Nyanpasu.IR.ANF
   , setAnn
   , getAtom
   , defLabels
+  , Label
   )
 where
 
@@ -54,11 +55,12 @@ import GHC.Generics
 import Control.DeepSeq
 import Data.Generics.Uniplate.Data
 
-import Language.Nyanpasu.Assembly.X86 (Label)
 
 -----------------------
 -- ANF Functional IR --
 -----------------------
+
+type Label = (String, Maybe Int32)
 
 -- | The Expr type
 --   Represents the low level, yet functional IR
@@ -68,7 +70,7 @@ data Expr a
   | MkPair a (Atom a) (Atom a)
   | PrimOp a PrimOp (Atom a)
   | PrimBinOp a PrimBinOp (Atom a) (Atom a)
-  | Let a Address (Expr a) (Expr a)
+  | Let a Offset (Expr a) (Expr a)
   | If a (Atom a) (Expr a) (Expr a)
   | Call a Label [Atom a]
   | CCall a Label [Atom a]
@@ -80,12 +82,12 @@ data Expr a
 data Atom a
   = Num a Int32
   | Bool a Bool
-  | Idn a Address
+  | Idn a Offset
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
--- | A stack address for a variable
+-- | A stack offset for a variable
 --
-type Address = Int32
+type Offset = Int32
 
 
 -- | A definition of a function or value

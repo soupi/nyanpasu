@@ -12,6 +12,7 @@ module Language.Nyanpasu
   , samples
   , x86Interpret
   , x86InterpretExpr
+  , getResult
   )
 where
 
@@ -19,16 +20,16 @@ import System.IO
 import System.Exit
 import Control.Monad
 import Text.Groom
+import Data.Bifunctor
 
 import Language.Nyanpasu.Samples
-import Language.Nyanpasu.Assembly.X86 (Instruction(IJmp))
-import Language.Nyanpasu.Types
+import Language.X86 (Instruction(IJmp))
 import Language.Nyanpasu.Utils (readFail)
 import Language.Nyanpasu.Options as Export
 import Language.Nyanpasu.IR as Export
 import Language.Nyanpasu.Error as Export
 import qualified Language.Nyanpasu.IR.CodeGen as CG
-import qualified Language.Nyanpasu.Assembly.X86.Interpreter as X86
+import qualified Language.X86 as X86
 
 run :: IO ()
 run = do
@@ -96,8 +97,8 @@ compileX86 program =
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
-    Right rs ->
-      print rs
+    Right (CG.Assembly rs) ->
+      putStrLn rs
 
 compileExprX86 :: Expr () -> IO ()
 compileExprX86 expr =
@@ -105,8 +106,8 @@ compileExprX86 expr =
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
-    Right rs ->
-      print rs
+    Right (CG.Assembly rs) ->
+      putStrLn rs
 
 interpreter :: Expr () -> IO ()
 interpreter expr =
@@ -119,7 +120,7 @@ interpreter expr =
 
 interpretExprX86 :: Expr () -> IO ()
 interpretExprX86 expr =
-  case int32ToVal () =<< x86InterpretExpr expr of
+  case getResult =<< x86InterpretExpr expr of
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
@@ -128,7 +129,7 @@ interpretExprX86 expr =
 
 interpretX86 :: Program () -> IO ()
 interpretX86 program =
-  case int32ToVal () =<< x86Interpret program of
+  case getResult =<< x86Interpret program of
     Left err -> do
       hPutStrLn stderr (displayError err)
       exitFailure
@@ -136,12 +137,23 @@ interpretX86 program =
       print rs
 
 -- | Compile and interpret an AST.Expr
-x86InterpretExpr :: Expr () -> Either Error Int32
-x86InterpretExpr = X86.runInterpreter <=< CG.compileProgramRaw . Program []
+x86InterpretExpr :: Expr () -> Either Error X86.Machine
+x86InterpretExpr =
+  runX86Interpreter
+  <=< CG.compileProgramRawVM
+    . Program []
 
 -- | Compile and interpret an Program
-x86Interpret :: Program () -> Either Error Int32
+x86Interpret :: Program () -> Either Error X86.Machine
 x86Interpret =
-  X86.runInterpreter
-  . (IJmp ("my_code",Nothing):)
-  <=< CG.compileProgramRaw
+  runX86Interpreter
+    . (IJmp (CG.lblToAddr ("my_code",Nothing)):)
+  <=< CG.compileProgramRawVM
+
+runX86Interpreter :: [Instruction] -> Either Error X86.Machine
+runX86Interpreter =
+  first AsmError
+    . (X86.getMachine <=< X86.interpret . (:[]) . X86.initMachine . X86.toCode)
+
+getResult :: X86.Machine -> Either Error (Atom ())
+getResult = int32ToVal () . X86.getReg X86.EAX

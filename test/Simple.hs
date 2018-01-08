@@ -23,13 +23,13 @@ qc =
 
 simple :: [Assertion]
 simple =
-  [ compareProgram (@=?) (inc_ $ num_ 7)
+  [ compareProgramVM (inc_ $ num_ 7)
 
-  , compareProgram (@=?) (dec_ $ num_ 7)
+  , compareProgramVM (dec_ $ num_ 7)
 
-  , compareProgram (@=?) (inc_ $ inc_ $ dec_ $ num_ 7)
+  , compareProgramVM (inc_ $ inc_ $ dec_ $ num_ 7)
 
-  , compareProgram (@=?)
+  , compareProgramVM
       (let_
          "a"
          true_
@@ -38,10 +38,10 @@ simple =
            (if_ false_ (num_ 5) (num_ 7))
            (num_ 0))
 
-  , compareProgram (@=?)
+  , compareProgramVM
       (add_
         (add_ (inc_ $ num_ 2) (inc_ $ num_ 2))
         (add_ (inc_ $ num_ 2) (inc_ $ num_ 2))
       )
   ]
-  ++ map (compareProgram (@=?)) samples
+  ++ map compareProgramVM samples

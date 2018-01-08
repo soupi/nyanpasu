@@ -8,7 +8,6 @@ module Language.Nyanpasu.IR.CodeGenUtils where
 import Language.Nyanpasu.IR.ANF
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Error
-import Language.Nyanpasu.Assembly.X86
 
 import Data.Data
 import Data.Generics.Uniplate.Data
@@ -21,7 +20,7 @@ import Control.Monad.Except
 --
 data CodeGenState = CodeGenState
   { cgSymbols :: Env
-  , cgCounter :: !Address
+  , cgCounter :: !Offset
   , cgNamer   :: !Int32
   , cgFunctions :: [(Name, Label)]
   }
@@ -31,21 +30,21 @@ initState :: [(Name, Label)] -> CodeGenState
 initState = CodeGenState [] 1 0
 
 -- | Env is a list so it can be used as a stack as well
-type Env = [(Name, Address)]
+type Env = [(Name, Offset)]
 
 -- | State CodeGenState + Except Error
 type CodeGen ann a
   = StateT CodeGenState (Except Error) a
 
 -- | Insert a variable into the environment and gen an address for it
-insertVar :: String -> CodeGen ann Address
+insertVar :: String -> CodeGen ann Offset
 insertVar name = do
   CodeGenState env addr namer funs <- get
   put (CodeGenState ((name, addr) : env) (addr + 1) namer funs)
   pure addr
 
 -- | Get an address for a fresh variable
-insertNamer :: CodeGen ann Address
+insertNamer :: CodeGen ann Offset
 insertNamer = do
   CodeGenState env addr namer funs <- get
   put (CodeGenState env addr (namer + 1) funs)
@@ -64,6 +63,6 @@ popVar = do
 ---------
 
 
-countVars :: Data a => Expr a -> Address
+countVars :: Data a => Expr a -> Offset
 countVars expr = (+1) . maximum . (0:) $
   [ addr | Let _ addr _ _ <- universe expr ]
