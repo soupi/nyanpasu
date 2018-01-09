@@ -38,11 +38,21 @@ samples =
   , if_ (eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
   , if_ (eq_ (add_ (num_ 7) (num_ 10)) (num_ 17)) (num_ 1) (num_ 0)
   , eq_ (add_ (num_ 8) (num_ 10)) (num_ 17)
+  , if_ true_ (num_ 1) (num_ 0)
   ]
 
 samplePrograms :: [Program ()]
 samplePrograms =
   [ Program
+    []
+    $ let_
+      "a"
+      true_
+      $ if_
+        (idn_ "a")
+        (if_ false_ (num_ 5) (num_ 7))
+        (num_ 0)
+  , Program
     [fun_ "id" ["x"] (idn_ "x")]
     (call_ "id" [num_ 7])
 
