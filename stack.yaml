@@ -4,7 +4,7 @@ packages:
 - '.'
 
 extra-deps:
-- archive: https://github.com/soupi/x86-debug/archive/5954d02ff13861bf8903586cb31118f28c3ff86e.zip
+- archive: https://github.com/soupi/x86-debug/archive/ee48e0ed6573b540ef3b84c614cc21a2f3c7eb14.zip
 
 flags: {}
 
