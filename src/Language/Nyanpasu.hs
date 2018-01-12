@@ -153,7 +153,7 @@ x86Interpret =
 runX86Interpreter :: [Instruction] -> Either Error X86.Machine
 runX86Interpreter =
   first AsmError
-    . (X86.getMachine <=< X86.interpret . (:[]) . X86.initMachine . X86.toCode)
+    . (X86.getMachine <=< X86.mToE . X86.interpret . (:[]) . X86.initMachine . X86.toCode [])
 
 getResult :: X86.Machine -> Either Error (Atom ())
 getResult = int32ToVal () . X86.getReg X86.EAX

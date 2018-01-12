@@ -95,6 +95,7 @@ test-suite test
     Simple
     Comparisons
     Interpreter
+    Programs
   build-depends:       base
                      , groom
                      , text
