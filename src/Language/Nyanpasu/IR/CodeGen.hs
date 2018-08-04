@@ -18,6 +18,7 @@ import qualified Language.Nyanpasu.IR.AST as AST
 import Data.Bits
 import Data.Bool
 import Data.Monoid ((<>))
+import Text.Groom (groom)
 import Control.Monad.State
 import Control.Monad.Except
 
@@ -449,6 +450,8 @@ lblToAddr :: Label -> Address
 lblToAddr = X86.Var . AL . fromLabel . lbl_
   where
     fromLabel (X86.Label l) = l
+    fromLabel x =
+      error $ "used after `lbl_` which is expected to return a Label, but it returned: " ++ groom x
 
 lbl_ :: Label -> Instruction
 lbl_ (s, m) = X86.Label $

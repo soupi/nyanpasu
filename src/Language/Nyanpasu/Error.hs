@@ -45,3 +45,6 @@ displayError = \case
       , "In Expression: "
       , groom e
       ]
+
+  AsmError e ->
+    "ASM Error: " ++ groom e
