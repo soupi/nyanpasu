@@ -27,6 +27,7 @@ library
      Language.Nyanpasu.IR.CodeGen
      Language.Nyanpasu.IR.Rewrites
      Language.Nyanpasu.IR.Rewrites.AST
+     Language.Nyanpasu.IR.Rewrites.AST.LambdaLifting
      Language.Nyanpasu.IR.Rewrites.ANF
      Language.Nyanpasu.IR.Rewrites.ANF.AstToAnf
      Language.Nyanpasu.IR.Rewrites.ANF.TailCalls

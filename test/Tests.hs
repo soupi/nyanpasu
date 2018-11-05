@@ -12,8 +12,8 @@ tests :: TestTree
 tests =
   testGroup
     "Tests"
-    [ Simple.tests
-    , Interpreter.tests
-    , Comparisons.tests
-    , Programs.tests
+   -- [ Simple.tests
+   -- , Interpreter.tests
+   -- , Comparisons.tests
+    [ Programs.tests
     ]

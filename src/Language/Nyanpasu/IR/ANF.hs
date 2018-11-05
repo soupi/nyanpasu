@@ -72,9 +72,9 @@ data Expr a
   | PrimBinOp a PrimBinOp (Atom a) (Atom a)
   | Let a Offset (Expr a) (Expr a)
   | If a (Atom a) (Expr a) (Expr a)
-  | Call a Label [Atom a]
-  | CCall a Label [Atom a]
-  | TailCall a Label Int32 [Atom a]
+  | Call a (Atom a) [Atom a]
+  | CCall a (Atom a) [Atom a]
+  | TailCall a (Atom a) Int32 [Atom a]
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | An immediate value
@@ -83,6 +83,7 @@ data Atom a
   = Num a Int32
   | Bool a Bool
   | Idn a Offset
+  | Lbl a Label
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | A stack offset for a variable
@@ -145,6 +146,7 @@ instance Annotated Atom where
     Num  _ n -> Num  newAnn n
     Bool _ b -> Bool newAnn b
     Idn _ i -> Idn newAnn i
+    Lbl _ l -> Lbl newAnn l
 
 instance Annotated Expr where
   getAnn :: Data a => Expr a -> a

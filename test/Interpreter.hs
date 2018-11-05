@@ -30,16 +30,16 @@ inter interpret =
   , interpret (inc_ $ dec_ $ num_ 7) @=?
       Right (Num () 7)
 
-  , interpret (let_ "x" (inc_ $ num_ 6) $ dec_ $ inc_ $ inc_ $ idn_ "x") @=?
+  , interpret (val_ "x" (inc_ $ num_ 6) $ dec_ $ inc_ $ inc_ $ idn_ "x") @=?
       Right (Num () 8)
 
-  , interpret (let_ "x" (inc_ $ num_ 6) $ let_ "x" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
+  , interpret (val_ "x" (inc_ $ num_ 6) $ val_ "x" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
       Right (Num () 0)
-  , interpret (let_ "x" (inc_ $ num_ 6) $ let_ "y" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
+  , interpret (val_ "x" (inc_ $ num_ 6) $ val_ "y" (dec_ $ dec_ $ num_ 1) $ inc_ $ idn_ "x") @=?
       Right (Num () 8)
 
   , interpret
-      (let_
+      (val_
         "a"
         true_
         $ if_

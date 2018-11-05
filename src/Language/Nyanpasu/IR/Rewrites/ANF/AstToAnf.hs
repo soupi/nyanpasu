@@ -5,6 +5,7 @@
 
 module Language.Nyanpasu.IR.Rewrites.ANF.AstToAnf where
 
+import Language.Nyanpasu.Types
 import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.IR.CodeGenUtils
@@ -27,13 +28,13 @@ runExprToANF :: AST.Expr () -> Except Error (Expr ())
 runExprToANF = flip evalStateT (initState []) . exprToANF
 
 -- | A-normalize a program
-normalizeProgram :: Data a => AST.Program a -> Except Error (Program a)
+normalizeProgram :: Show a => Data a => AST.Program a -> Except Error (Program a)
 normalizeProgram prog = do
   let funNames = map (\name -> (name, (name, Nothing))) (AST.defNames prog)
 
   (defs, main) <- flip evalStateT (initState funNames) $ do
     funs <- forM (AST.progDefs prog) $ \case
-      AST.Fun ann name args body -> do
+      AST.Fun name (AST.Lam ann args body) -> do
         modify $ \CodeGenState{..} ->
           let env = zip args [(-2),(-3)..]
           in CodeGenState env 1 cgNamer cgFunctions
@@ -46,7 +47,7 @@ normalizeProgram prog = do
 
 -- | Algorithm to convert an `AST.Expr a` to `ANF.Expr a`
 --   We will also assign permanent addresses for each identifier
-exprToANF :: Data a => AST.Expr a -> StateT CodeGenState (Except Error) (Expr a)
+exprToANF :: (Show a, Data a) => AST.Expr a -> StateT CodeGenState (Except Error) (Expr a)
 exprToANF = \case
 
   -- Atom is already immediate
@@ -72,16 +73,25 @@ exprToANF = \case
 
   -- assign an address the a name
   AST.Idn a name ->
-    Atom . Idn a
-      <$> llookupM cgSymbols name
+    catchError
+      (Atom . Idn a <$> llookupM cgSymbols name)
+      ( \_err ->
+          Atom . Lbl a <$> llookupM cgFunctions name
+      )
 
   -- assign an address the the name
-  AST.Let a name binder body -> do
+  AST.Let a name (Right' binder) body -> do
     bind <- exprToANF binder
     addr <- insertVar name
     expr <- exprToANF body
     popVar
     pure $ Let a addr bind expr
+
+  ast@(AST.Let _ _ (Left' _) _) -> do
+    throwError $ InternalError $ unlines
+      [ "Found let with lambda in AstToAnf. Expected lambda lifting to take care of it."
+      , groom ast
+      ]
 
   -- `test` must be converted to be immediate
   AST.If a test true false -> do

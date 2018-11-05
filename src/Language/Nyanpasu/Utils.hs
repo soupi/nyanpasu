@@ -9,9 +9,12 @@ import Data.Typeable (Typeable, typeOf)
 import Text.Read (readMaybe)
 
 import Debug.Trace (trace)
-import Text.Groom (groom)
+import qualified Text.Groom (groom)
 
 import Language.Nyanpasu.Error
+
+groom :: Show a => a -> String
+groom = Text.Groom.groom
 
 lookupM :: (MonadError Error m, MonadState s m) => (s -> M.Map String v) -> String -> m v
 lookupM getter key = do

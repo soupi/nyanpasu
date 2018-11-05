@@ -75,10 +75,16 @@ runInterpreter expr = case expr of
           Or  -> (||)
           Xor -> xor
 
-  Let _ binder bind e -> do
+  Let _ binder (Right' bind) e -> do
     r <- runInterpreter bind
     modify (M.insert binder r)
     runInterpreter e
+
+  ast@(Let _ _ (Left' _) _) -> do
+    throwError $ InternalError $ unlines
+      [ "Found let with lambda in AstToAnf. Expected lambda lifting to take care of it."
+      , groom ast
+      ]
 
   Idn _ name -> lookupM id name
 

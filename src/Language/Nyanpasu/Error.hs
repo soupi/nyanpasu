@@ -17,8 +17,10 @@ import Language.Nyanpasu.IR.AST (Atom(..), TypeError(..), Expr(..), ppAtom)
 
 data Error
   = Error String
+  | InternalError String
   | TError TypeError (Atom String) (Expr String)
   | AsmError X86.Error
+  | Unsupported String
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable)
 
 throwErr :: MonadError Error m => String -> m a
@@ -31,6 +33,9 @@ displayError :: Error -> String
 displayError = \case
   Error s ->
     "Error: " <> s
+
+  InternalError s ->
+    "Error: Unexpected error has occured - " <> s
 
   TError NotANumber a e ->
     unlines
@@ -48,3 +53,7 @@ displayError = \case
 
   AsmError e ->
     "ASM Error: " ++ groom e
+
+  Unsupported s ->
+    "Error: Unsupported feature " <> s
+

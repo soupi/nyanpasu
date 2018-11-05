@@ -71,7 +71,7 @@ assertCmp x y =
           in case x of
             Right m -> pp m
             Left (AsmError (X86.Error m _ _ _)) -> pp m
-            Left er -> ""
+            Left _er -> ""
         ]
 
 compareProgramVM :: Expr () -> Assertion

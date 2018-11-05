@@ -5,6 +5,7 @@
 
 module Language.Nyanpasu.IR.CodeGen where
 
+import Language.Nyanpasu.Utils
 import Language.Nyanpasu.Types
 import Language.Nyanpasu.Error
 import Language.Nyanpasu.IR.ANF
@@ -18,7 +19,6 @@ import qualified Language.Nyanpasu.IR.AST as AST
 import Data.Bits
 import Data.Bool
 import Data.Monoid ((<>))
-import Text.Groom (groom)
 import Control.Monad.State
 import Control.Monad.Except
 
@@ -67,7 +67,7 @@ compileProgram program = do
 -- | Compile an expression and output a assembly list of instructions
 compileProgramRawVM :: AST.Program () -> Either Error [Instruction]
 compileProgramRawVM program = do
-  prog'@Program{ progMain } <- rewrites program
+  prog'@Program{ progMain } <- traceL "prog" <$> rewrites program
   let funLabels = map (\lbl@(name, _) -> (name, lbl)) (defLabels prog')
   runExcept . flip evalStateT (initState funLabels) $ do
     funs <- mapM compileDef (progDefs prog')
@@ -214,6 +214,10 @@ compileAtom = \case
 
   Idn _ addr ->
     pure $ regOffset_ EBP addr
+
+  Lbl _ lbl ->
+    pure $ X86.AEL $ lblToAddr lbl
+
 
 -- | Compile a PrimOp to an x86 [Instruction]
 compileOp :: PrimOp -> [Instruction]

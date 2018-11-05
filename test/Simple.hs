@@ -30,7 +30,7 @@ simple =
   , compareProgramVM (inc_ $ inc_ $ dec_ $ num_ 7)
 
   , compareProgramVM
-      (let_
+      (val_
          "a"
          true_
          $ if_

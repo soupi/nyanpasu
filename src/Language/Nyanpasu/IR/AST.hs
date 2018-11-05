@@ -39,7 +39,7 @@ data Expr a
   | PrimBinOp a PrimBinOp (Expr a) (Expr a)
   | Idn a Name
   | MkPair a (Expr a) (Expr a)
-  | Let a Name (Expr a) (Expr a)
+  | Let a Name (Either' Lam Expr a) (Expr a)
   | If a (Expr a) (Expr a) (Expr a)
   | Call a Name [Expr a]
   | CCall a Name [Expr a]
@@ -49,7 +49,11 @@ data Expr a
 -- | A definition of a function or value
 --
 data Def a
-  = Fun a Name [Name] (Expr a)
+  = Fun Name (Lam a)
+  deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
+
+data Lam a
+  = Lam a [Name] (Expr a)
   deriving (Show, Read, Eq, Ord, Generic, NFData, Data, Typeable, Functor, Foldable, Traversable)
 
 -- | The Program type
@@ -157,8 +161,8 @@ ppAtom = \case
 -- AST Helpers --
 -----------------
 
-fun_ :: Name -> [Name] -> Expr () -> Def ()
-fun_ = Fun ()
+def_ :: Name -> [Name] -> Expr () -> Def ()
+def_ name args e = Fun name (Lam () args e)
 
 call_ :: String -> [Expr ()] -> Expr ()
 call_ = Call ()
@@ -166,8 +170,11 @@ call_ = Call ()
 ccall_ :: String -> [Expr ()] -> Expr ()
 ccall_ = CCall ()
 
-let_ :: String -> Expr () -> Expr () -> Expr ()
-let_ = Let ()
+val_ :: String -> Expr () -> Expr () -> Expr ()
+val_ name bind body = Let () name (Right' bind) body
+
+fun_ :: String -> [Name] -> Expr () -> Expr () -> Expr ()
+fun_ name args lbody inbody = Let () name (Left' $ Lam () args lbody) inbody
 
 if_ :: Expr () -> Expr () -> Expr () -> Expr ()
 if_ = If ()
@@ -237,5 +244,5 @@ snd_ = PrimOp () (PairOp Second)
 
 defNames :: Program a -> [Name]
 defNames prog = flip map (progDefs prog) $ \case
-  Fun _ name _ _ -> name
+  Fun name _ -> name
 
